@@ -86,39 +86,54 @@ async function requireManager(req, res, next) {
   }
 }
 
-app.post('/sync/all', requireManager, async (req, res) => {
+// Gemeinsame Logik für "alle vier Skripte nacheinander, mit Fortschritt in
+// sync_triggers" — genutzt vom Dashboard-Button (/sync/all, Manager-Login)
+// UND vom Cloud-Scheduler-Cron (/internal/sync-all, geteiltes Secret).
+async function runAllAndTrackStatus(requestedBy, res) {
   const db = getDb();
   const now = admin.firestore.FieldValue.serverTimestamp();
   await db.collection('sync_triggers').doc(TRIGGER_ID).set(
-    { status: 'running', startedAt: now, requestedBy: req.managerEmail, region: REGION },
+    { status: 'running', startedAt: now, requestedBy, region: REGION },
     { merge: true }
   );
-
   // Bewusst NICHT vorab antworten und im Hintergrund weiterlaufen: Cloud Run
   // drosselt die CPU standardmäßig, sobald die Antwort raus ist ("CPU is
   // only allocated during request processing") — Hintergrundarbeit nach
   // res.send() würde unzuverlässig laufen. Der Request bleibt offen, bis
-  // alles fertig ist; das Dashboard wartet nicht auf diese Antwort (feuert
-  // den fetch() und verfolgt den Fortschritt separat über den
-  // Firestore-Listener auf sync_triggers/manual).
+  // alles fertig ist; Dashboard/Scheduler warten nicht auf diese Antwort,
+  // sondern verfolgen den Fortschritt separat über den Firestore-Listener.
   try {
-    console.log(`[manual] Update angefordert von ${req.managerEmail} — starte alle drei Sync-Skripte…`);
+    console.log(`[sync-all] Angefordert von ${requestedBy} — starte alle vier Sync-Skripte…`);
     const results = await runAll();
     const allOk = results.every((r) => r.ok);
     await db.collection('sync_triggers').doc(TRIGGER_ID).set(
       { status: allOk ? 'done' : 'error', finishedAt: admin.firestore.FieldValue.serverTimestamp(), results, region: REGION },
       { merge: true }
     );
-    console.log(`[manual] Fertig. ${results.filter((r) => r.ok).length}/${results.length} Skripte erfolgreich.`);
+    console.log(`[sync-all] Fertig. ${results.filter((r) => r.ok).length}/${results.length} Skripte erfolgreich.`);
     res.status(200).json({ status: allOk ? 'done' : 'error', results });
   } catch (err) {
-    console.error('[manual] Fehlgeschlagen:', err.message);
+    console.error('[sync-all] Fehlgeschlagen:', err.message);
     await db.collection('sync_triggers').doc(TRIGGER_ID).set(
       { status: 'error', finishedAt: admin.firestore.FieldValue.serverTimestamp(), error: err.message, region: REGION },
       { merge: true }
     );
     res.status(500).json({ error: err.message });
   }
+}
+
+app.post('/sync/all', requireManager, async (req, res) => {
+  await runAllAndTrackStatus(req.managerEmail, res);
+});
+
+// ── Cloud Scheduler → alle vier Skripte in einem Lauf (1x/Tag statt 5
+// Einzel-Jobs — jeder Cloud-Scheduler-Job über die ersten 3 pro Projekt
+// kostet $0.10/Monat, ein gebündelter täglicher Lauf spart das). ─────────
+app.post('/internal/sync-all', async (req, res) => {
+  if (!SYNC_SHARED_SECRET || req.get('X-Sync-Secret') !== SYNC_SHARED_SECRET) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  await runAllAndTrackStatus('cloud-scheduler', res);
 });
 
 // ── Gebietsleiter trägt seine eigenen Axonity/Welo-Zugangsdaten ein ────────
