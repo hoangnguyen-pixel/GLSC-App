@@ -6,7 +6,7 @@
 require('dotenv').config();
 const { parse } = require('csv-parse/sync');
 const { getDb, admin } = require('./firestore-client');
-const { MARKTNR_ALIASES } = require('./branches');
+const { MARKTNR_ALIASES, resolveRegion } = require('./branches');
 
 const CSV_URL = process.env.WELO_STATISTIK_URL;
 const COLLECTION = 'filiale_umsatz';
@@ -83,6 +83,7 @@ async function main() {
         ertrag: row.ertrag,
         produktivitaet: row.produktivitaet,
         qualitaetMonat: row.qualitaetMonat,
+        region: resolveRegion(row.marktNr),
         updatedAt: now,
       },
       { merge: true }

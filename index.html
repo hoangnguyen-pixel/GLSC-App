@@ -4500,6 +4500,11 @@ checkFirstStart();
 // ════════ FIREBASE (Realtime Urlaub-Freigabe) ════════
 var FB_CONFIG = (typeof window!=='undefined' && window.FB_CONFIG) ? window.FB_CONFIG : null;
 var fbReady=false, fbDb=null, fbPending=[], fbDecided=[], fbManager=false;
+// Fallback/Bootstrap-Werte, falls die "regions"-Collection (noch) nicht
+// erreichbar ist — echte Quelle ist Firestore (regionLoadLabels()), damit
+// eine neue Region künftig ohne Code-Änderung nur per Firestore-Doc
+// hinzugefügt werden kann. Unbekannte Slugs fallen auf den rohen Slug-Text
+// zurück (siehe REGION_LABELS[r]||r an allen Verwendungsstellen).
 var REGION_LABELS={ost:'Đông', west:'Tây'};
 var activeRegion=null, __managerRegions=[];
 function fbEnabled(){ return !!(FB_CONFIG && FB_CONFIG.apiKey && typeof firebase!=='undefined'); }
@@ -4542,7 +4547,7 @@ function fbInit(onReady){
             return;
           }
           fbManager=true; __managerRegions=regions;
-          regionResolve(regions, onReady);
+          regionLoadLabels().then(function(){ regionResolve(regions, onReady); });
         }).catch(function(e){
           fbManager=false;
           fbPendingCardShow('⚠️ Fehler beim Prüfen der Region-Zuweisung: '+e.message, '#C0392B');
@@ -4560,6 +4565,18 @@ function fbInit(onReady){
 }
 
 // ════════ REGION-AUSWAHL (Ost/West) ════════
+// Einmaliges Nachladen der echten Anzeigenamen aus Firestore, bevor der
+// Picker/Switcher zum ersten Mal rendert — labels ändern sich praktisch nie,
+// daher .get() statt Live-Listener. Schlägt der Abruf fehl (z.B. Regel noch
+// nicht deployed), bleibt REGION_LABELS beim hardcodierten ost/west-Fallback.
+function regionLoadLabels(){
+  return fbDb.collection('regions').get().then(function(snap){
+    snap.forEach(function(doc){
+      var d=doc.data()||{};
+      if(d.label) REGION_LABELS[doc.id]=d.label;
+    });
+  }).catch(function(e){ console.warn('regions labels', e.message); });
+}
 function regionResolve(regions, onReady){
   var saved=localStorage.getItem('sc_active_region');
   if(regions.length===1){
@@ -4864,10 +4881,16 @@ async function filMigScan(){
 
     // B) Verwaisungs-Suche in filialen/urlaub — per collectionGroup, weil das Auflisten der
     // "filialen"-Sammlung selbst über Firestore-Regeln nicht erlaubt ist (nur die verschachtelte
-    // urlaub-Sammlung ist per collectionGroup lesbar).
-    var urlAllSnap=await fbDb.collectionGroup('urlaub').get();
+    // urlaub-Sammlung ist per collectionGroup lesbar). Die Regel verlangt seit der
+    // Region-Trennung ein passendes .where('region',...) — daher einmal pro Region
+    // abfragen, auf die dieser Account Zugriff hat, statt einer einzigen offenen Query.
+    var urlAllDocs=[];
+    for(var __ri=0; __ri<__managerRegions.length; __ri++){
+      var urlRegSnap=await fbDb.collectionGroup('urlaub').where('region','==',__managerRegions[__ri]).get();
+      urlRegSnap.forEach(function(doc){ urlAllDocs.push(doc); });
+    }
     var urlOrphans={}; // slug -> {docs:[{docId,data}], guesses:{name:count}}
-    urlAllSnap.forEach(function(doc){
+    urlAllDocs.forEach(function(doc){
       var slug2=doc.ref.parent&&doc.ref.parent.parent?doc.ref.parent.parent.id:null;
       if(!slug2) return;
       if(liveSlugs[slug2]||directMap[slug2]) return;

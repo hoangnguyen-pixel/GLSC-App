@@ -22,7 +22,7 @@
 require('dotenv').config();
 const { chromium } = require('playwright');
 const { getDb, admin } = require('./firestore-client');
-const { BEKANNTE_KOSTENSTELLEN } = require('./branches');
+const { BEKANNTE_KOSTENSTELLEN, resolveRegion } = require('./branches');
 const { writeSyncStatus } = require('./sync-status');
 
 // Domain seit 02.09.2026 auf sck.sushi-circle.de umgezogen — siehe Notiz in
@@ -206,6 +206,7 @@ async function main() {
         bestellzeit: b['Bestellzeit'] || '',
         abholzeit: b['Abholzeit'] || '',
         storniert: !!(b['Storniert'] && b['Storniert'].trim()),
+        region: resolveRegion(b['Kostenstelle'] || ''),
         updatedAt: now,
       };
 

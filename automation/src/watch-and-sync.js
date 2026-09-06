@@ -13,6 +13,15 @@ require('dotenv').config();
 const { getDb, admin } = require('./firestore-client');
 const { runAll: runAllScripts, runOne } = require('./sync-runner');
 
+// Ein zweites Automation-Konto (eigene REGION in seiner .env, z.B. eine
+// dritte Region mit eigenem Axonity/Welo-Login) braucht sein EIGENES
+// sync_triggers-Dokument — sonst würde der "Jetzt aktualisieren"-Knopf im
+// einen Dashboard auch den Watcher der anderen Region auslösen (und
+// umgekehrt dessen Fortschritt anzeigen). Ohne REGION in der .env bleibt die
+// Doc-ID exakt 'manual' wie bisher — keine Änderung für das bestehende Konto.
+const REGION = process.env.REGION || null;
+const TRIGGER_ID = REGION ? 'manual__' + REGION : 'manual';
+
 // EIN gemeinsames "läuft gerade"-Flag für BEIDE Auslöser (manueller Knopf +
 // automatische Umsatz-Auffrischung unten) — sonst könnten beide gleichzeitig
 // eine eigene Welo-Sitzung öffnen und sich gegenseitig aus der Session
@@ -61,8 +70,8 @@ function pruefeZielRefresh() {
 
 async function runAll(db, requestedBy) {
   const now = admin.firestore.FieldValue.serverTimestamp();
-  await db.collection('sync_triggers').doc('manual').set(
-    { status: 'running', startedAt: now, requestedBy: requestedBy || null },
+  await db.collection('sync_triggers').doc(TRIGGER_ID).set(
+    { status: 'running', startedAt: now, requestedBy: requestedBy || null, region: REGION },
     { merge: true }
   );
 
@@ -70,11 +79,12 @@ async function runAll(db, requestedBy) {
   const results = await runAllScripts();
 
   const allOk = results.every((r) => r.ok);
-  await db.collection('sync_triggers').doc('manual').set(
+  await db.collection('sync_triggers').doc(TRIGGER_ID).set(
     {
       status: allOk ? 'done' : 'error',
       finishedAt: admin.firestore.FieldValue.serverTimestamp(),
       results,
+      region: REGION,
     },
     { merge: true }
   );
@@ -83,12 +93,12 @@ async function runAll(db, requestedBy) {
 
 async function main() {
   const db = getDb();
-  console.log('Watcher läuft. Wartet auf sync_triggers/manual … (zum Beenden: Fenster schließen oder Strg+C)');
+  console.log(`Watcher läuft. Wartet auf sync_triggers/${TRIGGER_ID} … (zum Beenden: Fenster schließen oder Strg+C)`);
   console.log(`Automatische Umsatz-Aktualisierung (nur sync-welo-personal) täglich um: ${ZIEL_REFRESH_ZEITEN.join(', ')} Uhr.`);
 
   let lastHandledMs = 0;
 
-  db.collection('sync_triggers').doc('manual').onSnapshot(async (doc) => {
+  db.collection('sync_triggers').doc(TRIGGER_ID).onSnapshot(async (doc) => {
     if (!doc.exists) return;
     const data = doc.data();
     if (data.status !== 'requested') return; // eigene Statuswechsel (running/done) nicht erneut auslösen

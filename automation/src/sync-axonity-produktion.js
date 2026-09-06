@@ -22,7 +22,7 @@
 require('dotenv').config();
 const { chromium } = require('playwright');
 const { getDb, admin } = require('./firestore-client');
-const { GEBIETSLEITER_NAME } = require('./branches');
+const { GEBIETSLEITER_NAME, resolveRegion } = require('./branches');
 const { writeSyncStatus } = require('./sync-status');
 
 // Anteil fehlgeschlagener Filialen, ab dem ein Lauf als "mutmaßlich
@@ -307,6 +307,7 @@ async function main() {
           sxStart: r.sxStart,
           sxEnde: r.sxEnde,
           topProdukt: r.topProdukt,
+          region: resolveRegion(r.marktNr),
           updatedAt: now,
         },
         { merge: true }

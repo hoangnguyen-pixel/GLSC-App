@@ -173,6 +173,10 @@ header .sub{font-size:12px;opacity:.85;white-space:nowrap;overflow:hidden;text-o
       <span id="dr-user-stat">—</span>
       <span>·</span>
       <span>Periode <b id="dr-periode">—</b></span>
+      <span id="dr-region-wrap" style="display:none;">
+        <span>·</span>
+        📍 <select id="dr-region-select" onchange="drRegionSwitchTo(this.value)" style="font:inherit;"></select>
+      </span>
       <span>·</span>
       <a href="#" onclick="drLogout();return false;" style="color:var(--mut);">Abmelden</a>
     </div>
@@ -247,6 +251,12 @@ header .sub{font-size:12px;opacity:.85;white-space:nowrap;overflow:hidden;text-o
 var drDb = null, drManager = false;
 var drUnsubUmsatz = null, drUnsubProd = null, drUnsubOrders = null, drUnsubTrigger = null, drUnsubZiel = null, drUnsubPersonal = null, drUnsubStatus = null;
 var drUmsatz = {}, drProd = {}, drFilialen = {}, drOrders = [], drTrigger = null, drZiel = {}, drPersonal = [], drSyncStatus = {};
+// Fallback/Bootstrap-Werte — echte Quelle ist die "regions"-Collection in
+// Firestore (drRegionLoadLabels()), genau wie in index.html, damit eine neue
+// Region ohne Code-Änderung nutzbar ist. Unbekannte Slugs fallen auf den
+// rohen Slug-Text zurück (REGION_LABELS[r]||r).
+var REGION_LABELS = {ost:'Đông', west:'Tây'};
+var activeRegion = null, __managerRegions = [];
 
 function drPad(n){ return String(n).padStart(2,'0'); }
 function drTodayISO(){
@@ -276,10 +286,16 @@ function drInit(){
           return;
         }
         drManager = true;
-        document.getElementById('dr-user-stat').textContent = '✓ ' + user.email;
-        document.getElementById('dr-periode').textContent = drPeriodeISO();
-        drShowDash();
-        drStartListeners();
+        __managerRegions = regions;
+        drRegionLoadLabels().then(function(){
+          var saved = localStorage.getItem('sc_active_region');
+          activeRegion = (saved && regions.indexOf(saved)!==-1) ? saved : regions[0];
+          drRenderRegionSwitcher();
+          document.getElementById('dr-user-stat').textContent = '✓ ' + user.email;
+          document.getElementById('dr-periode').textContent = drPeriodeISO();
+          drShowDash();
+          drStartListeners();
+        });
       }).catch(function(e){
         drShowLogin('Fehler beim Prüfen der Manager-Zuweisung: '+e.message);
       });
@@ -305,6 +321,37 @@ function drShowLogin(err){
 function drShowDash(){
   document.getElementById('login-view').style.display = 'none';
   document.getElementById('dash-view').style.display = 'block';
+}
+
+// Spiegelt regionLoadLabels() aus index.html — einmaliger Abruf statt
+// Live-Listener (Labels ändern sich praktisch nie). Schlägt der Abruf fehl,
+// bleibt REGION_LABELS beim hardcodierten ost/west-Fallback oben.
+function drRegionLoadLabels(){
+  return drDb.collection('regions').get().then(function(snap){
+    snap.forEach(function(doc){
+      var d = doc.data() || {};
+      if(d.label) REGION_LABELS[doc.id] = d.label;
+    });
+  }).catch(function(e){ console.warn('regions labels', e.message); });
+}
+
+// Nur sichtbar für Konten mit mehr als einer Region (heute: der Owner mit
+// Ost+West) — ein einzelregionaler Manager sieht direkt sein Dashboard ohne
+// jede Umschalt-UI, genau wie beim Region-Picker in index.html.
+function drRenderRegionSwitcher(){
+  var wrap = document.getElementById('dr-region-wrap');
+  if(__managerRegions.length <= 1){ wrap.style.display = 'none'; return; }
+  wrap.style.display = 'inline';
+  var sel = document.getElementById('dr-region-select');
+  sel.innerHTML = __managerRegions.map(function(r){
+    return '<option value="'+r+'"'+(r===activeRegion?' selected':'')+'>'+(REGION_LABELS[r]||r)+'</option>';
+  }).join('');
+}
+function drRegionSwitchTo(r){
+  if(r===activeRegion || __managerRegions.indexOf(r)===-1) return;
+  activeRegion = r;
+  localStorage.setItem('sc_active_region', r);
+  drStartListeners();
 }
 
 var drActiveTab = 'heute';
@@ -343,7 +390,7 @@ function drStartListeners(){
   // Daten geschrieben hat, ist "aktueller Monat" leer). Stattdessen die
   // jeweils neueste tatsächlich vorhandene Periode ermitteln und anzeigen.
   if(drUnsubUmsatz) drUnsubUmsatz();
-  drUnsubUmsatz = drDb.collection('filiale_umsatz')
+  drUnsubUmsatz = drDb.collection('filiale_umsatz').where('region','==',activeRegion)
     .onSnapshot(function(snap){
       var byPeriode = {};
       snap.forEach(function(doc){
@@ -360,7 +407,7 @@ function drStartListeners(){
     }, function(e){ drRenderError('filiale_umsatz: '+e.message); });
 
   if(drUnsubProd) drUnsubProd();
-  drUnsubProd = drDb.collection('filiale_produktion').where('datum','==',heute)
+  drUnsubProd = drDb.collection('filiale_produktion').where('datum','==',heute).where('region','==',activeRegion)
     .onSnapshot(function(snap){
       drProd = {};
       snap.forEach(function(doc){ drProd[doc.data().marktNr] = doc.data(); });
@@ -369,20 +416,20 @@ function drStartListeners(){
     }, function(e){ drRenderError('filiale_produktion: '+e.message); });
 
   if(drUnsubTrigger) drUnsubTrigger();
-  drUnsubTrigger = drDb.collection('sync_triggers').doc('manual')
+  drUnsubTrigger = drDb.collection('sync_triggers').doc(drTriggerDocId())
     .onSnapshot(function(doc){
       drTrigger = doc.exists ? doc.data() : null;
       drRenderUpdateStatus();
     }, function(e){ console.warn('sync_triggers:', e.message); });
 
-  drDb.collection('filialen_meta').get().then(function(snap){
+  drDb.collection('filialen_meta').where('region','==',activeRegion).get().then(function(snap){
     drFilialen = {};
     snap.forEach(function(doc){ drFilialen[doc.id] = doc.data(); });
     drRender();
   }).catch(function(){ /* optional Anreicherung — kein Hard-Fail */ });
 
   if(drUnsubOrders) drUnsubOrders();
-  drUnsubOrders = drDb.collection('filiale_bestellungen').orderBy('createdAt', 'desc').limit(30)
+  drUnsubOrders = drDb.collection('filiale_bestellungen').where('region','==',activeRegion).orderBy('createdAt', 'desc').limit(30)
     .onSnapshot(function(snap){
       drOrders = [];
       snap.forEach(function(doc){ drOrders.push(doc.data()); });
@@ -394,7 +441,7 @@ function drStartListeners(){
   // die Doc-ID ist {marktNr}_{YYYYMMDD}, aber wir filtern über das eigene
   // "datum"-Feld statt die ID zu parsen.
   if(drUnsubZiel) drUnsubZiel();
-  drUnsubZiel = drDb.collection('tagesziel').where('datum','==',heute)
+  drUnsubZiel = drDb.collection('tagesziel').where('datum','==',heute).where('region','==',activeRegion)
     .onSnapshot(function(snap){
       drZiel = {};
       snap.forEach(function(doc){ drZiel[doc.data().marktNr] = doc.data(); });
@@ -403,7 +450,7 @@ function drStartListeners(){
 
   // Personal-Selbstauskunft (Soll-Std./Urlaub/Krank), gleiche Quelle.
   if(drUnsubPersonal) drUnsubPersonal();
-  drUnsubPersonal = drDb.collection('emp_welo')
+  drUnsubPersonal = drDb.collection('emp_welo').where('region','==',activeRegion)
     .onSnapshot(function(snap){
       drPersonal = [];
       snap.forEach(function(doc){ drPersonal.push(Object.assign({id:doc.id}, doc.data())); });
@@ -414,12 +461,24 @@ function drStartListeners(){
   // fehlgeschlagen ist (z.B. Axonity hat wieder die Seitenstruktur
   // geändert), statt dass veraltete Zahlen unkommentiert stehen bleiben.
   if(drUnsubStatus) drUnsubStatus();
-  drUnsubStatus = drDb.collection('sync_status')
+  drUnsubStatus = drDb.collection('sync_status').where('region','==',activeRegion)
     .onSnapshot(function(snap){
       drSyncStatus = {};
       snap.forEach(function(doc){ drSyncStatus[doc.id] = doc.data(); });
       drRenderHealthBanner();
     }, function(e){ console.warn('sync_status:', e.message); });
+}
+
+// Spiegelt die Doc-ID-Konvention aus automation/src/watch-and-sync.js: das
+// BESTEHENDE Automation-Konto bedient ost UND west aus einer Installation
+// (keine REGION in seiner .env, da resolveRegion() dort über die geteilte
+// MARKTNR_REGION-Tabelle für beide Regionen geht) — Trigger-Doc bleibt für
+// beide schlicht 'manual'. Eine GANZ NEUE Region läuft dagegen als eigene,
+// unabhängige Automation-Installation mit eigener .env (REGION=<slug>
+// gesetzt) und bekommt dadurch ihr eigenes Trigger-Doc 'manual__<slug>' —
+// sonst würde "Jetzt aktualisieren" den falschen Watcher/Login anstoßen.
+function drTriggerDocId(){
+  return (activeRegion && activeRegion!=='ost' && activeRegion!=='west') ? 'manual__'+activeRegion : 'manual';
 }
 
 function drMaxUpdatedAt(){
@@ -441,10 +500,11 @@ function drFmtTime(d){
 function drRequestUpdate(){
   var btn = document.getElementById('dr-update-btn');
   btn.disabled = true;
-  drDb.collection('sync_triggers').doc('manual').set({
+  drDb.collection('sync_triggers').doc(drTriggerDocId()).set({
     status: 'requested',
     requestedAt: firebase.firestore.FieldValue.serverTimestamp(),
     requestedBy: firebase.auth().currentUser ? firebase.auth().currentUser.email : null,
+    region: activeRegion,
   }).catch(function(e){ alert('Anfrage fehlgeschlagen: '+e.message); btn.disabled = false; });
 }
 

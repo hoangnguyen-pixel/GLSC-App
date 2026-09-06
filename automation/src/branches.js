@@ -47,7 +47,15 @@ const WEST_KOSTENSTELLEN = [
   '402416', // Bergisch Gladbach-Odenthaler Str. - Gärtner
   '402523', // Kaufland Essen
 ];
-const BEKANNTE_KOSTENSTELLEN = new Set([...OST_KOSTENSTELLEN, ...WEST_KOSTENSTELLEN]);
+// Ein zweites Automation-Konto (eigener Axonity/Welo-Login, eigene Filialen,
+// z.B. eine dritte Region) hat seine eigenen Kostenstellen nie in dieser
+// Liste — daher per .env override-bar (KOSTENSTELLEN=123456,234567), ohne
+// dass das bestehende ost/west-Konto (kein KOSTENSTELLEN in seiner .env)
+// sich ändert.
+const ENV_KOSTENSTELLEN = (process.env.KOSTENSTELLEN || '').split(',').map((s) => s.trim()).filter(Boolean);
+const BEKANNTE_KOSTENSTELLEN = ENV_KOSTENSTELLEN.length
+  ? new Set(ENV_KOSTENSTELLEN)
+  : new Set([...OST_KOSTENSTELLEN, ...WEST_KOSTENSTELLEN]);
 
 // marktNr -> 'ost'|'west', für den automatischen emps-Sync aus Welo
 // (sync-welo-personal.js) — dieselben Region-Werte wie index.html's
@@ -64,6 +72,18 @@ const MARKTNR_ALIASES = {
   '611125': '401125', // Ratio Baunatal
 };
 
-const GEBIETSLEITER_NAME = 'Thang Duc Duong';
+// Per .env override-bar (GEBIETSLEITER_NAME=...) für ein zweites Automation-
+// Konto mit eigenem Axonity-Login, dessen "Gebietsleiter"-Filter naturgemäß
+// einen anderen Namen braucht.
+const GEBIETSLEITER_NAME = process.env.GEBIETSLEITER_NAME || 'Thang Duc Duong';
 
-module.exports = { BEKANNTE_KOSTENSTELLEN, MARKTNR_ALIASES, MARKTNR_REGION, GEBIETSLEITER_NAME };
+// marktNr -> region für Firestore-Writes. Nutzt zuerst die geteilte
+// MARKTNR_REGION-Tabelle oben (ost/west); eine komplett neue Region (eigener
+// Axonity/Welo-Login, eigene Filialen) taucht dort nie auf und fällt daher
+// automatisch auf REGION aus der eigenen .env dieses Automation-Kontos zurück
+// — kein Pflegen der geteilten Tabelle nötig, wenn eine weitere Region dazukommt.
+function resolveRegion(marktNr) {
+  return MARKTNR_REGION[marktNr] || process.env.REGION || null;
+}
+
+module.exports = { BEKANNTE_KOSTENSTELLEN, MARKTNR_ALIASES, MARKTNR_REGION, GEBIETSLEITER_NAME, resolveRegion };

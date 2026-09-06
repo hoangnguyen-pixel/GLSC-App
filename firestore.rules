@@ -46,6 +46,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Anzeigename je Region (z.B. 'ost' -> 'Đông') — Daten statt Code, damit
+    // eine neue Region künftig ohne Code-Änderung nutzbar ist: es reicht,
+    // hier einen Doc + einen managers/{email}-Eintrag anzulegen.
+    match /regions/{slug} {
+      allow get, list: if isManager();
+      allow write: if false;
+    }
+
     // ══════════════════════════════════════════════════════════
     // FILIALEN-STAMMDATEN (new — replaces the old browser-local-only lists)
     // ══════════════════════════════════════════════════════════
@@ -106,11 +114,14 @@ service cloud.firestore {
       allow delete: if isManagerForRegion(docRegion(resource.data));
     }
     match /{path=**}/urlaub/{u} {
-      // list()/collectionGroup ohne .where() kann Firestore nicht gegen ein
-      // dynamisches Feld wie region prüfen -> list bewusst offener (isManager,
-      // nicht regionsgebunden); die App filtert Ergebnisse selbst per Query.
+      // list() auf einer collectionGroup kann Firestore nur dann gegen ein
+      // dynamisches Feld wie region prüfen, wenn die Query selbst ein
+      // passendes .where('region','==',...) mitbringt (sonst wird die ganze
+      // Anfrage abgelehnt, nicht nur gefiltert). fbStartPending() tut das
+      // bereits (collectionGroup('urlaub').where('region','==',activeRegion)),
+      // daher ist die Region-Prüfung hier sicher scharf zu stellen.
       allow get: if isManagerForRegion(docRegion(resource.data));
-      allow list: if isManager();
+      allow list: if isManagerForRegion(resource.data.region);
     }
 
     // ══════════════════════════════════════════════════════════
@@ -130,13 +141,13 @@ service cloud.firestore {
     match /krank/{k} {
       allow create: if isAuthed();
       allow get: if isManagerForRegion(docRegion(resource.data));
-      allow list: if isManager();
+      allow list: if isManagerForRegion(resource.data.region);
       allow update, delete: if isManagerForRegion(docRegion(resource.data));
     }
     match /antrag/{a} {
       allow create: if isAuthed();
       allow get: if isManagerForRegion(docRegion(resource.data));
-      allow list: if isManager();
+      allow list: if isManagerForRegion(resource.data.region);
       allow update, delete: if isManagerForRegion(docRegion(resource.data));
     }
 
@@ -183,7 +194,7 @@ service cloud.firestore {
     match /wareneingang/{w} {
       allow create: if isAuthed();
       allow get: if isManagerForRegion(docRegion(resource.data));
-      allow list: if isManager();
+      allow list: if isManagerForRegion(resource.data.region);
       allow update, delete: if isManagerForRegion(docRegion(resource.data));
     }
 
@@ -193,7 +204,7 @@ service cloud.firestore {
     match /umlagerung/{u} {
       allow create: if isAuthed();
       allow get: if isManagerForRegion(docRegion(resource.data));
-      allow list: if isManager();
+      allow list: if isManagerForRegion(resource.data.region);
       allow update, delete: if isManagerForRegion(docRegion(resource.data));
     }
 
@@ -228,41 +239,55 @@ service cloud.firestore {
     // beschrieben (Service-Account umgeht diese Regeln) — Client-Writes
     // sind daher bewusst gesperrt.
     // ══════════════════════════════════════════════════════════
+    // Manager-only (keine mitarbeiter.html-Zugriffe) — seit der Mehr-Konten-
+    // Unterstützung tragen alle Schreibvorgänge ein region-Feld (siehe
+    // resolveRegion() in automation/src/branches.js), daher hier sowohl
+    // get als auch list region-scharf.
     match /filiale_umsatz/{docId} {
-      allow get, list: if isManager();
+      allow get: if isManagerForRegion(docRegion(resource.data));
+      allow list: if isManagerForRegion(resource.data.region);
       allow write: if false;
     }
     // Live-Tagesumsatz: wird auch von der Mitarbeiter-App gelesen
     // (maRenderZielInfo, Fortschrittsbalken zum Tagesziel), nicht nur vom
-    // Manager-Dashboard - deshalb isAuthed() wie bei tagesziel/emp_welo unten,
-    // nicht isManager() wie die uebrigen Filial-Radar-Collections hier.
+    // Manager-Dashboard - deshalb bleibt get() isAuthed() wie bei
+    // tagesziel/emp_welo unten (Mitarbeiter-Login ist anonym, kann serverseitig
+    // nicht regionsgebunden geprüft werden); list() ist aber nur fürs
+    // Manager-Dashboard und daher region-scharf.
     match /filiale_produktion/{docId} {
-      allow get, list: if isAuthed();
+      allow get: if isAuthed();
+      allow list: if isManagerForRegion(resource.data.region);
       allow write: if false;
     }
     match /filiale_bestellungen/{docId} {
-      allow get, list: if isManager();
+      allow get: if isManagerForRegion(docRegion(resource.data));
+      allow list: if isManagerForRegion(resource.data.region);
       allow write: if false;
     }
     // Gesundheitsstatus der Axonity/Welo-Sync-Skripte selbst (ok/warn/error
     // je Skript) — getrennt von den Datencollections oben, damit das
     // Dashboard "Sync kaputt" anzeigen kann statt nur veraltete Zahlen.
     match /sync_status/{docId} {
-      allow get, list: if isManager();
+      allow get: if isManagerForRegion(docRegion(resource.data));
+      allow list: if isManagerForRegion(resource.data.region);
       allow write: if false;
     }
 
     // Mitarbeiter-Selbstauskunft (Soll-Std./Urlaub/Krank aus Welo) + tägliches
     // Umsatz-Ziel je Filiale — anders als die drei Collections oben müssen
-    // Mitarbeiter (nicht nur Manager) das lesen können, um ihre eigenen
-    // Werte bzw. das Tagesziel ihrer Filiale zu sehen. Nur vom
+    // Mitarbeiter (nicht nur Manager) das per get() lesen können, um ihre
+    // eigenen Werte bzw. das Tagesziel ihrer Filiale zu sehen (anonymer
+    // Mitarbeiter-Login, serverseitig nicht regionsgebunden prüfbar). list()
+    // ist nur fürs Manager-Dashboard und daher region-scharf. Nur vom
     // sync-welo-personal.js-Skript per Admin-SDK beschrieben.
     match /emp_welo/{docId} {
-      allow get, list: if isAuthed();
+      allow get: if isAuthed();
+      allow list: if isManagerForRegion(resource.data.region);
       allow write: if false;
     }
     match /tagesziel/{docId} {
-      allow get, list: if isAuthed();
+      allow get: if isAuthed();
+      allow list: if isManagerForRegion(resource.data.region);
       allow write: if false;
     }
 
@@ -272,7 +297,14 @@ service cloud.firestore {
     // Sync-Skripte an — Ersatz/Ergänzung zu den zeitgesteuerten Tasks, falls
     // der PC gerade an ist statt zur festen Uhrzeit.
     match /sync_triggers/{id} {
-      allow read, write: if isManager();
+      // Doc-ID ist seit der Mehr-Konten-Unterstützung region-suffixt
+      // ('manual__<region>', siehe watch-and-sync.js/server.js) und trägt ein
+      // region-Feld — ohne das könnte ein Manager einer Region den laufenden
+      // Sync-Trigger einer anderen Region auslösen oder dessen Fortschritt lesen.
+      allow get: if isManagerForRegion(docRegion(resource.data));
+      allow create: if isManagerForRegion(request.resource.data.region);
+      allow update: if isManagerForRegion(docRegion(resource.data))
+        && isManagerForRegion(request.resource.data.region);
     }
   }
 }

@@ -1,0 +1,755 @@
+{
+  "west": [
+    {
+      "id": "330314",
+      "name": "Thi Minh Chau Trinh",
+      "filiale": "402422: E-Leverkusen-Pommernstraße",
+      "zweit": [
+        "402167: R-Düsseldorf-Hauptstr."
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 40,
+      "shopleiter": false
+    },
+    {
+      "id": "330337",
+      "name": "Endhamya Asemenintha Meliala",
+      "filiale": "402523: K-Essen-Haedenkampstraße",
+      "zweit": [
+        "402315: R-Bochum-Viktoriastraße - Mert"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "330478",
+      "name": "Panadda Frunzescu",
+      "filiale": "402422: E-Leverkusen-Pommernstraße",
+      "zweit": [
+        "402261: R-Hilden-Mittelstraße"
+      ],
+      "taetigkeit": "Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "330485",
+      "name": "Thi Dieu Quynh Trinh",
+      "filiale": "402414: E-Bergheim-Dansweilerstraße - Fischenich",
+      "zweit": [
+        "402422: E-Leverkusen-Pommernstraße"
+      ],
+      "taetigkeit": "Shop MA",
+      "sollStd": 38,
+      "shopleiter": false
+    },
+    {
+      "id": "340259",
+      "name": "Quoc Bao Huynh",
+      "filiale": "402205: R-Hattingen-Heggerstraße",
+      "zweit": [
+        "402315: R-Bochum-Viktoriastraße - Mert"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 42,
+      "shopleiter": true
+    },
+    {
+      "id": "340276",
+      "name": "Chee Sam Chin",
+      "filiale": "402167: R-Düsseldorf-Hauptstr.",
+      "zweit": [
+        "402251: R-Düsseldorf-Zeppelinstraße"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 42,
+      "shopleiter": true
+    },
+    {
+      "id": "340301",
+      "name": "Hongbiao Li",
+      "filiale": "402302: R-Neuss-Allerheiligen-Am alten Bach - Friedrich",
+      "zweit": [
+        "402414: E-Bergheim-Dansweilerstraße - Fischenich"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "340312",
+      "name": "Xiaoxi Kang",
+      "filiale": "402302: R-Neuss-Allerheiligen-Am alten Bach - Friedrich",
+      "zweit": [
+        "402414: E-Bergheim-Dansweilerstraße - Fischenich"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 40,
+      "shopleiter": false
+    },
+    {
+      "id": "340322",
+      "name": "Kim Mai Nguyen",
+      "filiale": "402261: R-Hilden-Mittelstraße",
+      "zweit": [
+        "402512: R-Remscheid-Wupperstraße"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 40,
+      "shopleiter": true
+    },
+    {
+      "id": "340361",
+      "name": "Bayarmagnai Unurbat",
+      "filiale": "402363: R-Bergneustadt-Stadionstr.",
+      "zweit": [
+        "402512: R-Remscheid-Wupperstraße"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "340370",
+      "name": "Archna Dhusia Sharma",
+      "filiale": "402363: R-Bergneustadt-Stadionstr.",
+      "zweit": [
+        "402416: R-Bergisch Gladbach-Odenthaler Str. - Gärtner"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "340429",
+      "name": "Duc Hanh Doan",
+      "filiale": "402507: K-Wesel-Rudolf-Diesel-Straße",
+      "zweit": [
+        "402523: K-Essen-Haedenkampstraße"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 42,
+      "shopleiter": false
+    },
+    {
+      "id": "340444",
+      "name": "Vu Nguyen Doan",
+      "filiale": "402310: R-Wuppertal-Ascheweg - Brücken Kaufpark",
+      "zweit": [
+        "402512: R-Remscheid-Wupperstraße"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 30,
+      "shopleiter": false
+    },
+    {
+      "id": "340473",
+      "name": "My Linh Heidel",
+      "filiale": "402310: R-Wuppertal-Ascheweg - Brücken Kaufpark",
+      "zweit": [
+        "402185: K-Hagen-Auf dem Lölfert"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 36,
+      "shopleiter": true
+    },
+    {
+      "id": "340877",
+      "name": "Thi Hoan Tran",
+      "filiale": "402315: R-Bochum-Viktoriastraße - Mert",
+      "zweit": [
+        "402523: K-Essen-Haedenkampstraße"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 40,
+      "shopleiter": true
+    },
+    {
+      "id": "340910",
+      "name": "Hai Nguyen",
+      "filiale": "402167: R-Düsseldorf-Hauptstr.",
+      "zweit": [
+        "402272: R-Düsseldorf-Münsterstraße"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 30,
+      "shopleiter": false
+    },
+    {
+      "id": "340918",
+      "name": "Van Thanh Vu",
+      "filiale": "402416: R-Bergisch Gladbach-Odenthaler Str. - Gärtner",
+      "zweit": [
+        "402133: K-Köln-Thebäerstraße"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "340955",
+      "name": "Hong Minh Nguyen",
+      "filiale": "402251: R-Düsseldorf-Zeppelinstraße",
+      "zweit": [
+        "402167: R-Düsseldorf-Hauptstr."
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 40,
+      "shopleiter": true
+    },
+    {
+      "id": "341377",
+      "name": "Hong Son Vu",
+      "filiale": "402512: R-Remscheid-Wupperstraße",
+      "zweit": [
+        "402310: R-Wuppertal-Ascheweg - Brücken Kaufpark"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 38,
+      "shopleiter": true
+    },
+    {
+      "id": "341384",
+      "name": "Muhammad Yasir Amjad",
+      "filiale": "402416: R-Bergisch Gladbach-Odenthaler Str. - Gärtner",
+      "zweit": [
+        "402133: K-Köln-Thebäerstraße"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 40,
+      "shopleiter": false
+    },
+    {
+      "id": "341392",
+      "name": "Rona Cita Azizah",
+      "filiale": "402251: R-Düsseldorf-Zeppelinstraße",
+      "zweit": [
+        "402167: R-Düsseldorf-Hauptstr."
+      ],
+      "taetigkeit": "Shop MA",
+      "sollStd": 24,
+      "shopleiter": false
+    },
+    {
+      "id": "341409",
+      "name": "Thanchanok Hahlweg",
+      "filiale": "402205: R-Hattingen-Heggerstraße",
+      "zweit": [
+        "402315: R-Bochum-Viktoriastraße - Mert"
+      ],
+      "taetigkeit": "Shop MA",
+      "sollStd": 8,
+      "shopleiter": false
+    },
+    {
+      "id": "341411",
+      "name": "Trung Thanh Trinh",
+      "filiale": "402523: K-Essen-Haedenkampstraße",
+      "zweit": [
+        "402315: R-Bochum-Viktoriastraße - Mert"
+      ],
+      "taetigkeit": "Shop MA",
+      "sollStd": 40,
+      "shopleiter": false
+    },
+    {
+      "id": "341424",
+      "name": "Hongli Shao",
+      "filiale": "402167: R-Düsseldorf-Hauptstr.",
+      "zweit": [
+        "402251: R-Düsseldorf-Zeppelinstraße"
+      ],
+      "taetigkeit": "Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "341450",
+      "name": "Paramita Dian Purnomo",
+      "filiale": "402261: R-Hilden-Mittelstraße",
+      "zweit": [
+        "402512: R-Remscheid-Wupperstraße"
+      ],
+      "taetigkeit": "Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "341457",
+      "name": "Diu Thuan Nguyen",
+      "filiale": "402512: R-Remscheid-Wupperstraße",
+      "zweit": [
+        "402310: R-Wuppertal-Ascheweg - Brücken Kaufpark"
+      ],
+      "taetigkeit": "Shop MA",
+      "sollStd": 8.5,
+      "shopleiter": false
+    },
+    {
+      "id": "341503",
+      "name": "Dinh Chien Nguyen",
+      "filiale": "402315: R-Bochum-Viktoriastraße - Mert",
+      "zweit": [
+        "402523: K-Essen-Haedenkampstraße"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 42,
+      "shopleiter": false
+    },
+    {
+      "id": "350152",
+      "name": "Dandan Schütte-Wei",
+      "filiale": "402185: K-Hagen-Auf dem Lölfert",
+      "zweit": [
+        "402310: R-Wuppertal-Ascheweg - Brücken Kaufpark"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 40,
+      "shopleiter": true
+    },
+    {
+      "id": "350153",
+      "name": "Thi Bich Tran",
+      "filiale": "402133: K-Köln-Thebäerstraße",
+      "zweit": [
+        "402416: R-Bergisch Gladbach-Odenthaler Str. - Gärtner"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 38,
+      "shopleiter": false
+    },
+    {
+      "id": "350445",
+      "name": "Thi Ngoc Anh Nguyen",
+      "filiale": "402422: E-Leverkusen-Pommernstraße",
+      "zweit": [
+        "402261: R-Hilden-Mittelstraße"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 40,
+      "shopleiter": false
+    },
+    {
+      "id": "350527",
+      "name": "Eric Ta",
+      "filiale": "402185: K-Hagen-Auf dem Lölfert",
+      "zweit": [
+        "402315: R-Bochum-Viktoriastraße - Mert"
+      ],
+      "taetigkeit": "Shop MA",
+      "sollStd": 15,
+      "shopleiter": false
+    },
+    {
+      "id": "350529",
+      "name": "Ngoc Thanh Nha Nguyen",
+      "filiale": "402507: K-Wesel-Rudolf-Diesel-Straße",
+      "zweit": [
+        "402251: R-Düsseldorf-Zeppelinstraße"
+      ],
+      "taetigkeit": "Shop MA",
+      "sollStd": 42,
+      "shopleiter": false
+    },
+    {
+      "id": "350544",
+      "name": "Susdalia Silitonga",
+      "filiale": "402261: R-Hilden-Mittelstraße",
+      "zweit": [
+        "402310: R-Wuppertal-Ascheweg - Brücken Kaufpark"
+      ],
+      "taetigkeit": "Shop MA",
+      "sollStd": 30,
+      "shopleiter": false
+    },
+    {
+      "id": "350553",
+      "name": "Thi Tu Ngo",
+      "filiale": "402272: R-Düsseldorf-Münsterstraße",
+      "zweit": [
+        "402523: K-Essen-Haedenkampstraße"
+      ],
+      "taetigkeit": "Springer",
+      "sollStd": 40,
+      "shopleiter": false
+    },
+    {
+      "id": "350598",
+      "name": "Boi Anh Khuu",
+      "filiale": "402507: K-Wesel-Rudolf-Diesel-Straße",
+      "zweit": [
+        "402523: K-Essen-Haedenkampstraße"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 30,
+      "shopleiter": false
+    },
+    {
+      "id": "350604",
+      "name": "The Hai Nguyen",
+      "filiale": "402261: R-Hilden-Mittelstraße",
+      "zweit": [
+        "402422: E-Leverkusen-Pommernstraße"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 30,
+      "shopleiter": false
+    },
+    {
+      "id": "350605",
+      "name": "Sumi Park",
+      "filiale": "402133: K-Köln-Thebäerstraße",
+      "zweit": [
+        "402416: R-Bergisch Gladbach-Odenthaler Str. - Gärtner"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 25,
+      "shopleiter": false
+    }
+  ],
+  "ost": [
+    {
+      "id": "330158",
+      "name": "Thi Thu Hang Chu",
+      "filiale": "402297: MK-Einbeck-Altendorfer Tor",
+      "zweit": [
+        "Edeka Northeim Robert-Schnabel-Str."
+      ],
+      "taetigkeit": "Sushi Shopleiterin",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "330254",
+      "name": "Thi Nhung Cao",
+      "filiale": "402257: E-Northeim-Robert-Schnabel-Str. - Schnabel",
+      "zweit": [
+        "Einbeck-Altendorfer Tor"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "330384",
+      "name": "Truong Thuy Vi Linh Vu",
+      "filiale": "402150: E-Sontra-Mühlbergstraße - Salzmann",
+      "zweit": [
+        "401125: RA-Baunatal-Fuldastraße",
+        "401891: E-Kassel-Frankfurter Str. - Aschoff"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 38,
+      "shopleiter": false
+    },
+    {
+      "id": "330460",
+      "name": "Thi Thuy Nguyen",
+      "filiale": "402257: E-Northeim-Robert-Schnabel-Str. - Schnabel",
+      "zweit": [
+        "Einbeck-Altendorfer Tor"
+      ],
+      "taetigkeit": "Shop MA",
+      "sollStd": 20,
+      "shopleiter": false
+    },
+    {
+      "id": "330685",
+      "name": "Kim Aldrin Frias",
+      "filiale": "401891: E-Kassel-Frankfurter Str. - Aschoff",
+      "zweit": [
+        "Baunatal-Fuldastraße"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 36,
+      "shopleiter": true
+    },
+    {
+      "id": "330697",
+      "name": "Thi Le Tran",
+      "filiale": "402207: E-Bovenden-Industriestraße",
+      "zweit": [
+        "Bovenden-Industriestraße",
+        "Kaufland Göttingen Am Kauf Park",
+        "Tegut Göttingen An-der-Lutter",
+        "Tegut Göttingen Weender Str."
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "330722",
+      "name": "Thi Thanh Huyen Ton",
+      "filiale": "402257: E-Northeim-Robert-Schnabel-Str. - Schnabel",
+      "zweit": [
+        "402207: E-Bovenden-Industriestraße",
+        "402240: R-Heilbad Heiligenstadt-Sperberwiese - Ihme"
+      ],
+      "taetigkeit": "Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "340404",
+      "name": "Thi Thu Hang Pham",
+      "filiale": "401891: E-Kassel-Frankfurter Str. - Aschoff",
+      "zweit": [
+        "Baunatal-Fuldastraße"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 38,
+      "shopleiter": false
+    },
+    {
+      "id": "340913",
+      "name": "Minh Khue Do",
+      "filiale": "402150: E-Sontra-Mühlbergstraße - Salzmann",
+      "zweit": [
+        "402254: R-Kirchheim-Industriestraße - Messerschmidt"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 20,
+      "shopleiter": false
+    },
+    {
+      "id": "340944",
+      "name": "Thi Phuong Hoang",
+      "filiale": "402502: T-Göttingen-An-der-Lutter",
+      "zweit": [
+        "Göttingen-Am Kauf Park",
+        "Göttingen-Weender Str."
+      ],
+      "taetigkeit": "Sushi Shop Leiterin",
+      "sollStd": 36,
+      "shopleiter": true
+    },
+    {
+      "id": "341041",
+      "name": "Yanisa Puchta",
+      "filiale": "401888: R-Homberg (Efze)-Kasseler Str. - Mohr",
+      "zweit": [
+        "401125: RA-Baunatal-Fuldastraße"
+      ],
+      "taetigkeit": "",
+      "sollStd": 32,
+      "shopleiter": false
+    },
+    {
+      "id": "341373",
+      "name": "Minh Hieu Nguyen",
+      "filiale": "402240: R-Heilbad Heiligenstadt-Sperberwiese - Ihme",
+      "zweit": [
+        "402501: T-Göttingen-Weender Str."
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 10,
+      "shopleiter": false
+    },
+    {
+      "id": "341421",
+      "name": "Chutikan Gimpel",
+      "filiale": "401888: R-Homberg (Efze)-Kasseler Str. - Mohr",
+      "zweit": [
+        "402254: R-Kirchheim-Industriestraße - Messerschmidt"
+      ],
+      "taetigkeit": "Shopleiterin",
+      "sollStd": 40,
+      "shopleiter": true
+    },
+    {
+      "id": "341443",
+      "name": "Phi Long Doan",
+      "filiale": "402240: R-Heilbad Heiligenstadt-Sperberwiese - Ihme",
+      "zweit": [
+        "Marktkauf Nordhausen Darrweg"
+      ],
+      "taetigkeit": "Shop MA",
+      "sollStd": 38,
+      "shopleiter": false
+    },
+    {
+      "id": "341475",
+      "name": "Thi Thu Vi",
+      "filiale": "402240: R-Heilbad Heiligenstadt-Sperberwiese - Ihme",
+      "zweit": [
+        "Nordhausen-Darrweg"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "341476",
+      "name": "Abdulhamid Husamuldin Abdulhamid Sultan",
+      "filiale": "402240: R-Heilbad Heiligenstadt-Sperberwiese - Ihme",
+      "zweit": [
+        "Göttingen-Am Kauf Park",
+        "Göttingen-An-der-Lutter",
+        "Göttingen-Weender Str."
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "341495",
+      "name": "Chunhua Loutchan",
+      "filiale": "402254: R-Kirchheim-Industriestraße - Messerschmidt",
+      "zweit": [
+        "402146: T-Bad Hersfeld-Heinrich-von-Stephan-Straße"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 40,
+      "shopleiter": false
+    },
+    {
+      "id": "350561",
+      "name": "Thi Lan Anh Nguyen",
+      "filiale": "402286: K-Göttingen-Am Kauf Park",
+      "zweit": [
+        "Edeka Bovenden Industriestraße",
+        "Göttingen-An-der-Lutter",
+        "Göttingen-Weender Str."
+      ],
+      "taetigkeit": "Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "350596",
+      "name": "Minh Giang Ngo",
+      "filiale": "402286: K-Göttingen-Am Kauf Park",
+      "zweit": [
+        "402501: T-Göttingen-Weender Str."
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 40,
+      "shopleiter": false
+    },
+    {
+      "id": "360011",
+      "name": "Thi Nuong Nguyen",
+      "filiale": "402155: M-Nordhausen-Darrweg",
+      "zweit": [
+        "Heilbad Heiligenstadt-Sperberwiese - Ihme"
+      ],
+      "taetigkeit": "",
+      "sollStd": 30,
+      "shopleiter": false
+    },
+    {
+      "id": "360021",
+      "name": "Thi Nga Pham",
+      "filiale": "402155: M-Nordhausen-Darrweg",
+      "zweit": [
+        "402240: R-Heilbad Heiligenstadt-Sperberwiese - Ihme"
+      ],
+      "taetigkeit": "Sushi Shop Leiterin",
+      "sollStd": 36,
+      "shopleiter": true
+    },
+    {
+      "id": "360053",
+      "name": "Lan Phung",
+      "filiale": "402297: MK-Einbeck-Altendorfer Tor",
+      "zweit": [
+        "402257: E-Northeim-Robert-Schnabel-Str. - Schnabel"
+      ],
+      "taetigkeit": "Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "360135",
+      "name": "Claudine Lucia Angeli Müller",
+      "filiale": "401125: RA-Baunatal-Fuldastraße",
+      "zweit": [
+        "Edeka Kassel Frankfurter Str."
+      ],
+      "taetigkeit": "",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "370116",
+      "name": "Diem Thi Thanh Roth",
+      "filiale": "401125: RA-Baunatal-Fuldastraße",
+      "zweit": [
+        "Baunatal-Fuldastraße"
+      ],
+      "taetigkeit": "",
+      "sollStd": 24,
+      "shopleiter": false
+    },
+    {
+      "id": "410001",
+      "name": "Hai Thanh Nguyen",
+      "filiale": "402146: T-Bad Hersfeld-Heinrich-von-Stephan-Straße",
+      "zweit": [
+        "402254: R-Kirchheim-Industriestraße - Messerschmidt"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 42,
+      "shopleiter": false
+    },
+    {
+      "id": "410012",
+      "name": "Thi Viet Nguyen",
+      "filiale": "402502: T-Göttingen-An-der-Lutter",
+      "zweit": [
+        "402286: K-Göttingen-Am Kauf Park",
+        "402502: T-Göttingen-An-der-Lutter"
+      ],
+      "taetigkeit": "Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "410013",
+      "name": "Van Chung Ngo",
+      "filiale": "402502: T-Göttingen-An-der-Lutter",
+      "zweit": [
+        "Göttingen-Am Kauf Park",
+        "Göttingen-Weender Str."
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "410018",
+      "name": "Thi Viet Nguyen",
+      "filiale": "402501: T-Göttingen-Weender Str.",
+      "zweit": [
+        "402286: K-Göttingen-Am Kauf Park"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "470008",
+      "name": "Hazel Kneipp",
+      "filiale": "401125: RA-Baunatal-Fuldastraße",
+      "zweit": [
+        "Edeka Kassel Frankfurter Str."
+      ],
+      "taetigkeit": "Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    },
+    {
+      "id": "470009",
+      "name": "Bongkotchakon Abramowski",
+      "filiale": "401125: RA-Baunatal-Fuldastraße",
+      "zweit": [
+        "401891: E-Kassel-Frankfurter Str. - Aschoff"
+      ],
+      "taetigkeit": "Sushi Shop MA",
+      "sollStd": 36,
+      "shopleiter": false
+    }
+  ]
+}

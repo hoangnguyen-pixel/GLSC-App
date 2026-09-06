@@ -21,6 +21,12 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 8080;
 const SYNC_SHARED_SECRET = process.env.SYNC_SHARED_SECRET;
+// Siehe gleichnamige Konstante in watch-and-sync.js: ein zweites, eigenes
+// Automation-Konto (eigene REGION in seiner .env) braucht sein eigenes
+// sync_triggers-Dokument, sonst überschreiben sich zwei parallel deployte
+// Instanzen gegenseitig den Fortschritt. Ohne REGION bleibt die Doc-ID 'manual'.
+const REGION = process.env.REGION || null;
+const TRIGGER_ID = REGION ? 'manual__' + REGION : 'manual';
 
 app.get('/health', (req, res) => res.status(200).send('ok'));
 
@@ -63,8 +69,8 @@ async function requireManager(req, res, next) {
 app.post('/sync/all', requireManager, async (req, res) => {
   const db = getDb();
   const now = admin.firestore.FieldValue.serverTimestamp();
-  await db.collection('sync_triggers').doc('manual').set(
-    { status: 'running', startedAt: now, requestedBy: req.managerEmail },
+  await db.collection('sync_triggers').doc(TRIGGER_ID).set(
+    { status: 'running', startedAt: now, requestedBy: req.managerEmail, region: REGION },
     { merge: true }
   );
 
@@ -79,16 +85,16 @@ app.post('/sync/all', requireManager, async (req, res) => {
     console.log(`[manual] Update angefordert von ${req.managerEmail} — starte alle drei Sync-Skripte…`);
     const results = await runAll();
     const allOk = results.every((r) => r.ok);
-    await db.collection('sync_triggers').doc('manual').set(
-      { status: allOk ? 'done' : 'error', finishedAt: admin.firestore.FieldValue.serverTimestamp(), results },
+    await db.collection('sync_triggers').doc(TRIGGER_ID).set(
+      { status: allOk ? 'done' : 'error', finishedAt: admin.firestore.FieldValue.serverTimestamp(), results, region: REGION },
       { merge: true }
     );
     console.log(`[manual] Fertig. ${results.filter((r) => r.ok).length}/${results.length} Skripte erfolgreich.`);
     res.status(200).json({ status: allOk ? 'done' : 'error', results });
   } catch (err) {
     console.error('[manual] Fehlgeschlagen:', err.message);
-    await db.collection('sync_triggers').doc('manual').set(
-      { status: 'error', finishedAt: admin.firestore.FieldValue.serverTimestamp(), error: err.message },
+    await db.collection('sync_triggers').doc(TRIGGER_ID).set(
+      { status: 'error', finishedAt: admin.firestore.FieldValue.serverTimestamp(), error: err.message, region: REGION },
       { merge: true }
     );
     res.status(500).json({ error: err.message });

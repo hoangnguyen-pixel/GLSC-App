@@ -91,7 +91,7 @@ require('dotenv').config();
 const { chromium } = require('playwright');
 const { parse } = require('csv-parse/sync');
 const { getDb, admin } = require('./firestore-client');
-const { MARKTNR_ALIASES, MARKTNR_REGION } = require('./branches');
+const { MARKTNR_ALIASES, MARKTNR_REGION, resolveRegion } = require('./branches');
 const { withWeloLock } = require('./sync-lock');
 
 const BASE_URL = process.env.WELO_BASE_URL || 'https://welo.sushi-circle.de';
@@ -576,6 +576,7 @@ async function syncAll() {
             monatSoll: st.monatSoll ?? null,
             monatMinus: st.monatMinus ?? null,
           },
+          region: resolveRegion(p.marktNr),
           updatedAt: now,
         },
         { merge: true }
@@ -599,7 +600,7 @@ async function syncAll() {
     const empsBatch = db.batch();
     let empsCount = 0, empsOhneRegion = 0;
     for (const [id, p] of Object.entries(personal)) {
-      const region = bestehendeRegion[id] || MARKTNR_REGION[p.marktNr] || null;
+      const region = bestehendeRegion[id] || resolveRegion(p.marktNr);
       if (!region) empsOhneRegion++;
       const payload = {
         name: reformatWeloName(p.name), filiale: p.marktname, filialeNr: p.marktNr,
@@ -707,6 +708,7 @@ async function syncAll() {
           ziel, wasteFaktor: WASTE_FAKTOR, produktionsziel,
           umsatzHeuteVerdaechtig: heuteVerdaechtig ? uHeuteRoh : admin.firestore.FieldValue.delete(),
           umsatzVorjahrVerdaechtig: (uVorjahrRoh != null && uVorjahrRoh < UMSATZ_MIN_PLAUSIBEL) ? uVorjahrRoh : admin.firestore.FieldValue.delete(),
+          region: resolveRegion(marktNr),
           updatedAt: now,
         },
         { merge: true }
