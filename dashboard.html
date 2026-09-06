@@ -326,11 +326,17 @@ function drShowDash(){
 // Spiegelt regionLoadLabels() aus index.html — einmaliger Abruf statt
 // Live-Listener (Labels ändern sich praktisch nie). Schlägt der Abruf fehl,
 // bleibt REGION_LABELS beim hardcodierten ost/west-Fallback oben.
+// syncUrl (optional, nur bei Regionen mit eigenem Cloud-Run-Konto gesetzt,
+// z.B. "hoang") steuert in drRequestUpdate(), ob "Jetzt aktualisieren" den
+// lokalen Watcher (Ost/West, kein syncUrl) oder direkt den Cloud-Run-Dienst
+// dieser Region anspricht.
+var REGION_SYNC_URL = {};
 function drRegionLoadLabels(){
   return drDb.collection('regions').get().then(function(snap){
     snap.forEach(function(doc){
       var d = doc.data() || {};
       if(d.label) REGION_LABELS[doc.id] = d.label;
+      if(d.syncUrl) REGION_SYNC_URL[doc.id] = d.syncUrl;
     });
   }).catch(function(e){ console.warn('regions labels', e.message); });
 }
@@ -500,6 +506,20 @@ function drFmtTime(d){
 function drRequestUpdate(){
   var btn = document.getElementById('dr-update-btn');
   btn.disabled = true;
+  var syncUrl = REGION_SYNC_URL[activeRegion];
+  if(syncUrl){
+    // Region mit eigenem Cloud-Run-Konto (z.B. "hoang") — direkt den Dienst
+    // dieser Region anstoßen, kein lokaler Watcher/PC nötig. server.js
+    // schreibt Fortschritt selbst nach sync_triggers/manual__<region>, der
+    // bestehende drUnsubTrigger-Listener zeigt den Status wie gewohnt an —
+    // hier NICHT auf die (bis zu ~20 Min. lange) Antwort warten.
+    firebase.auth().currentUser.getIdToken().then(function(idToken){
+      return fetch(syncUrl+'/sync/all', { method:'POST', headers:{ Authorization:'Bearer '+idToken } });
+    }).catch(function(e){ alert('Anfrage fehlgeschlagen: '+e.message); btn.disabled = false; });
+    return;
+  }
+  // Ost/West (kein syncUrl) — unverändertes bisheriges Verhalten: Trigger-Doc
+  // schreiben, lokaler Watcher auf dem PC übernimmt den Rest.
   drDb.collection('sync_triggers').doc(drTriggerDocId()).set({
     status: 'requested',
     requestedAt: firebase.firestore.FieldValue.serverTimestamp(),

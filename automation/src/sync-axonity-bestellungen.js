@@ -22,7 +22,7 @@
 require('dotenv').config();
 const { chromium } = require('playwright');
 const { getDb, admin } = require('./firestore-client');
-const { BEKANNTE_KOSTENSTELLEN, resolveRegion } = require('./branches');
+const { getBekannteKostenstellen, resolveRegion } = require('./branches');
 const { writeSyncStatus } = require('./sync-status');
 
 // Domain seit 02.09.2026 auf sck.sushi-circle.de umgezogen — siehe Notiz in
@@ -96,7 +96,7 @@ async function readBestellungen(page) {
     rawCount++;
     // /pickups/ zeigt seit dem Update firmenweite Bestellungen — nur die
     // eigenen Filialen behalten.
-    if (!BEKANNTE_KOSTENSTELLEN.has(data['Kostenstelle'])) continue;
+    if (!getBekannteKostenstellen().has(data['Kostenstelle'])) continue;
     data._domIndex = domIndex;
     bestellungen.push(data);
   }

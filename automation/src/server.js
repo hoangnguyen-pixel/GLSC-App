@@ -15,9 +15,28 @@ require('dotenv').config();
 const express = require('express');
 const { getDb, admin } = require('./firestore-client');
 const { runOne, runAll } = require('./sync-runner');
+const { setSecret } = require('./secrets-client');
+
+// getDb() ruft intern admin.initializeApp() auf — muss VOR dem ersten
+// admin.auth()-Aufruf passiert sein (sonst "default Firebase app does not
+// exist" bei jedem frischen Cold-Start), daher hier sofort beim Start
+// erzwungen statt erst lazy beim ersten Firestore-Zugriff.
+getDb();
 
 const app = express();
 app.use(express.json());
+// dashboard.html (GitHub Pages, andere Domain) ruft /sync/all direkt per
+// fetch() auf — ohne CORS-Header blockt der Browser das serverseitig, bevor
+// die eigentliche Auth-Prüfung (Bearer-Token unten) überhaupt greift. Der
+// echte Schutz ist ohnehin die Token-/Secret-Prüfung pro Route, nicht die
+// Herkunft der Anfrage — daher hier bewusst offen statt auf eine Domain fixiert.
+app.use(function(req, res, next) {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Sync-Secret');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  next();
+});
 
 const PORT = process.env.PORT || 8080;
 const SYNC_SHARED_SECRET = process.env.SYNC_SHARED_SECRET;
@@ -60,6 +79,7 @@ async function requireManager(req, res, next) {
     const regions = (managerDoc.exists && managerDoc.data().regions) || [];
     if (!regions.length) return res.status(403).json({ error: 'not a manager' });
     req.managerEmail = decoded.email;
+    req.managerRegions = regions;
     next();
   } catch (err) {
     res.status(401).json({ error: 'invalid token: ' + err.message });
@@ -97,6 +117,37 @@ app.post('/sync/all', requireManager, async (req, res) => {
       { status: 'error', finishedAt: admin.firestore.FieldValue.serverTimestamp(), error: err.message, region: REGION },
       { merge: true }
     );
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Gebietsleiter trägt seine eigenen Axonity/Welo-Zugangsdaten ein ────────
+// Aufgerufen aus index.html (Settings-Panel), sobald diese Region ein
+// eigenes Cloud-Run-Konto hat. REGION kommt bewusst aus der eigenen .env
+// dieser Instanz (nicht vom Client) — ein Manager kann so nur Secrets für
+// GENAU die Region schreiben, die diese Instanz bedient.
+app.post('/credentials', requireManager, async (req, res) => {
+  if (!REGION || !req.managerRegions.includes(REGION)) {
+    return res.status(403).json({ error: 'not authorized for this region' });
+  }
+  const b = req.body || {};
+  const map = {
+    AXONITY_USER: b.axonityUser,
+    AXONITY_PASSWORD: b.axonityPassword,
+    WELO_USER: b.weloUser,
+    WELO_PASSWORD: b.weloPassword,
+    WELO_STATISTIK_URL: b.weloStatistikUrl,
+    GEBIETSLEITER_NAME: b.gebietsleiterName,
+    KOSTENSTELLEN: b.kostenstellen,
+  };
+  try {
+    for (const [key, val] of Object.entries(map)) {
+      if (val) await setSecret(`${REGION}-${key}`, String(val));
+    }
+    console.log(`[credentials] ${req.managerEmail} hat Zugangsdaten für Region "${REGION}" aktualisiert.`);
+    res.status(200).json({ status: 'ok' });
+  } catch (err) {
+    console.error('[credentials] Fehlgeschlagen:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

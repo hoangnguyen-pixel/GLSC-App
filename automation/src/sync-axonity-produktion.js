@@ -22,7 +22,7 @@
 require('dotenv').config();
 const { chromium } = require('playwright');
 const { getDb, admin } = require('./firestore-client');
-const { GEBIETSLEITER_NAME, resolveRegion } = require('./branches');
+const { getGebietsleiterName, resolveRegion } = require('./branches');
 const { writeSyncStatus } = require('./sync-status');
 
 // Anteil fehlgeschlagener Filialen, ab dem ein Lauf als "mutmaßlich
@@ -97,7 +97,7 @@ async function listMarkets(page) {
     await gebietsleiterFilter.click();
     await page.waitForTimeout(400);
   }
-  await page.getByRole('option', { name: GEBIETSLEITER_NAME, exact: true }).click();
+  await page.getByRole('option', { name: getGebietsleiterName(), exact: true }).click();
   await page.waitForTimeout(800);
   await page.locator('table tbody tr').first().waitFor({ timeout: 15000 });
 

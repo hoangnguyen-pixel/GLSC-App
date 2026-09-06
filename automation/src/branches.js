@@ -49,13 +49,20 @@ const WEST_KOSTENSTELLEN = [
 ];
 // Ein zweites Automation-Konto (eigener Axonity/Welo-Login, eigene Filialen,
 // z.B. eine dritte Region) hat seine eigenen Kostenstellen nie in dieser
-// Liste — daher per .env override-bar (KOSTENSTELLEN=123456,234567), ohne
-// dass das bestehende ost/west-Konto (kein KOSTENSTELLEN in seiner .env)
-// sich ändert.
-const ENV_KOSTENSTELLEN = (process.env.KOSTENSTELLEN || '').split(',').map((s) => s.trim()).filter(Boolean);
-const BEKANNTE_KOSTENSTELLEN = ENV_KOSTENSTELLEN.length
-  ? new Set(ENV_KOSTENSTELLEN)
-  : new Set([...OST_KOSTENSTELLEN, ...WEST_KOSTENSTELLEN]);
+// Liste — daher per .env/Secret Manager override-bar (KOSTENSTELLEN=
+// 123456,234567), ohne dass das bestehende ost/west-Konto (kein
+// KOSTENSTELLEN in seiner .env) sich ändert.
+// ALS FUNKTION (nicht als Konstante beim require() ausgewertet!): ein
+// Cloud-Run-Konto lädt seine eigenen Zugangsdaten erst innerhalb von main()
+// per loadRegionSecretsIntoEnv() nach — das passiert NACH diesem require(),
+// eine zur require-Zeit ausgewertete Konstante hätte also für immer den
+// (leeren) Ausgangswert eingefroren.
+function getBekannteKostenstellen() {
+  const envKostenstellen = (process.env.KOSTENSTELLEN || '').split(',').map((s) => s.trim()).filter(Boolean);
+  return envKostenstellen.length
+    ? new Set(envKostenstellen)
+    : new Set([...OST_KOSTENSTELLEN, ...WEST_KOSTENSTELLEN]);
+}
 
 // marktNr -> 'ost'|'west', für den automatischen emps-Sync aus Welo
 // (sync-welo-personal.js) — dieselben Region-Werte wie index.html's
@@ -72,10 +79,13 @@ const MARKTNR_ALIASES = {
   '611125': '401125', // Ratio Baunatal
 };
 
-// Per .env override-bar (GEBIETSLEITER_NAME=...) für ein zweites Automation-
-// Konto mit eigenem Axonity-Login, dessen "Gebietsleiter"-Filter naturgemäß
-// einen anderen Namen braucht.
-const GEBIETSLEITER_NAME = process.env.GEBIETSLEITER_NAME || 'Thang Duc Duong';
+// Per .env/Secret Manager override-bar (GEBIETSLEITER_NAME=...) für ein
+// zweites Automation-Konto mit eigenem Axonity-Login, dessen "Gebietsleiter"-
+// Filter naturgemäß einen anderen Namen braucht. Als Funktion aus demselben
+// Grund wie getBekannteKostenstellen() oben.
+function getGebietsleiterName() {
+  return process.env.GEBIETSLEITER_NAME || 'Thang Duc Duong';
+}
 
 // marktNr -> region für Firestore-Writes. Nutzt zuerst die geteilte
 // MARKTNR_REGION-Tabelle oben (ost/west); eine komplett neue Region (eigener
@@ -86,4 +96,4 @@ function resolveRegion(marktNr) {
   return MARKTNR_REGION[marktNr] || process.env.REGION || null;
 }
 
-module.exports = { BEKANNTE_KOSTENSTELLEN, MARKTNR_ALIASES, MARKTNR_REGION, GEBIETSLEITER_NAME, resolveRegion };
+module.exports = { getBekannteKostenstellen, MARKTNR_ALIASES, MARKTNR_REGION, getGebietsleiterName, resolveRegion };

@@ -993,6 +993,30 @@ window.onerror=function(msg,src,line){
 
 <!-- ===== EINSTELLUNGEN ===== -->
 <div id="panel-settings" class="panel">
+  <!-- Nur sichtbar für Regionen mit eigenem Cloud-Run-Konto (regionRenderSwitcher()
+       schaltet das per REGION_SYNC_URL um) — Ost/West sehen diese Karte nie. -->
+  <div class="card" id="fr-creds-card" style="display:none">
+    <div class="card-title">📡 Filial Radar — Zugangsdaten</div>
+    <div class="info">Deine eigenen Axonity/Welo-Zugangsdaten für die automatische Umsatz-/Produktionserfassung. Werden sicher in Google Secret Manager gespeichert — niemand sonst sieht sie, auch nicht der Gebietsleiter West/Ost.</div>
+    <label>Axonity Benutzername</label>
+    <div><input type="text" id="fr-ax-user" autocomplete="off"></div>
+    <label>Axonity Passwort</label>
+    <div><input type="password" id="fr-ax-pass" autocomplete="new-password"></div>
+    <label>Welo Benutzername</label>
+    <div><input type="text" id="fr-wl-user" autocomplete="off"></div>
+    <label>Welo Passwort</label>
+    <div><input type="password" id="fr-wl-pass" autocomplete="new-password"></div>
+    <label>Welo Statistik-Export-Link</label>
+    <div><input type="text" id="fr-wl-url" placeholder="Statistiken > Statistik Exporter"></div>
+    <label>Gebietsleiter-Name (exakt wie bei Axonity hinterlegt)</label>
+    <div><input type="text" id="fr-gl-name"></div>
+    <label>Kostenstellen deiner Filialen (kommagetrennt)</label>
+    <div><input type="text" id="fr-kst" placeholder="z.B. 123456,234567"></div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-grn" onclick="frSaveCredentials()" style="flex:1;justify-content:center">💾 Speichern</button>
+    </div>
+    <div id="fr-creds-stat" style="font-size:12px;margin-top:8px;font-weight:600"></div>
+  </div>
   <div class="card">
     <div class="card-title">📲 Mitarbeiter-App <span class="badge badge-grn">Cloud</span></div>
     <div class="info"><strong>Datenschutz-Modus:</strong> Daten werden direkt in die Cloud veröffentlicht — keine Datei mehr an Mitarbeiter senden. Mitarbeiter melden sich nur mit ihrer Personalnummer an und sehen ausschließlich die eigene Filiale.</div>
@@ -4602,11 +4626,16 @@ function fbInit(onReady){
 // Picker/Switcher zum ersten Mal rendert — labels ändern sich praktisch nie,
 // daher .get() statt Live-Listener. Schlägt der Abruf fehl (z.B. Regel noch
 // nicht deployed), bleibt REGION_LABELS beim hardcodierten ost/west-Fallback.
+// REGION_SYNC_URL: nur gesetzt für Regionen mit eigenem Cloud-Run-Konto
+// (z.B. "hoang") — steuert, ob das Filial-Radar-Zugangsdaten-Formular in
+// Settings angezeigt wird (siehe regionRenderSwitcher()).
+var REGION_SYNC_URL={};
 function regionLoadLabels(){
   return fbDb.collection('regions').get().then(function(snap){
     snap.forEach(function(doc){
       var d=doc.data()||{};
       if(d.label) REGION_LABELS[doc.id]=d.label;
+      if(d.syncUrl) REGION_SYNC_URL[doc.id]=d.syncUrl;
     });
   }).catch(function(e){ console.warn('regions labels', e.message); });
 }
@@ -4642,6 +4671,8 @@ function regionSetActive(region, onReady){
   else if(onReady){ onReady(); }
 }
 function regionRenderSwitcher(){
+  var credsCard=document.getElementById('fr-creds-card');
+  if(credsCard) credsCard.style.display=(activeRegion && REGION_SYNC_URL[activeRegion]) ? 'block' : 'none';
   var wrap=document.getElementById('region-switcher-wrap');
   var label=document.getElementById('region-switcher-label');
   if(!wrap||!label) return;
@@ -4681,6 +4712,38 @@ function regionAfterSwitchReset(){
   var activeBtn=document.querySelector('.app-ico.active');
   if(activePanel && activeBtn){ sw(activePanel.id.replace('panel-',''), activeBtn); }
   toast('📍 Region gewechselt: '+(REGION_LABELS[activeRegion]||activeRegion));
+}
+
+// Sendet die selbst eingetragenen Axonity/Welo-Zugangsdaten an den
+// Cloud-Run-Dienst der aktiven Region (server.js: POST /credentials) — per
+// Firebase-ID-Token authentifiziert, genau wie regionSwitchTo/dashboard.html
+// das Dashboard bereits tun. Nur sichtbar/aufrufbar, wenn REGION_SYNC_URL
+// für die aktive Region gesetzt ist (siehe regionRenderSwitcher()).
+function frSaveCredentials(){
+  var syncUrl=REGION_SYNC_URL[activeRegion];
+  if(!syncUrl) return;
+  var stat=document.getElementById('fr-creds-stat');
+  stat.textContent='⏳ Speichere…'; stat.style.color='#6B6860';
+  firebase.auth().currentUser.getIdToken().then(function(idToken){
+    return fetch(syncUrl+'/credentials', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', Authorization:'Bearer '+idToken},
+      body: JSON.stringify({
+        axonityUser: document.getElementById('fr-ax-user').value.trim(),
+        axonityPassword: document.getElementById('fr-ax-pass').value,
+        weloUser: document.getElementById('fr-wl-user').value.trim(),
+        weloPassword: document.getElementById('fr-wl-pass').value,
+        weloStatistikUrl: document.getElementById('fr-wl-url').value.trim(),
+        gebietsleiterName: document.getElementById('fr-gl-name').value.trim(),
+        kostenstellen: document.getElementById('fr-kst').value.trim(),
+      })
+    });
+  }).then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    stat.textContent='✓ Gespeichert'; stat.style.color='#1E8449';
+    document.getElementById('fr-ax-pass').value='';
+    document.getElementById('fr-wl-pass').value='';
+  }).catch(function(e){ stat.textContent='⚠️ Fehler: '+e.message; stat.style.color='#C0392B'; });
 }
 
 function fbManagerLogin(){
