@@ -231,7 +231,25 @@ window.onerror=function(msg,src,line){
   <button class="btn btn-grn" style="padding:6px 14px;font-size:13px" onclick="location.reload()">Jetzt aktualisieren</button>
 </div>
 
-<div class="wrap">
+<!-- Login-Gate: bis zum erfolgreichen Manager-Login ist NUR dieser Block
+     sichtbar (siehe authGateShow()/authGateHide() weiter unten im Script).
+     Ohne echten Login bleibt #main-wrap unten komplett display:none. -->
+<div id="auth-gate" style="max-width:380px;margin:60px auto 0">
+  <div class="card">
+    <div class="card-title">🔐 Manager-Login</div>
+    <div class="info">Bitte mit deinem Firebase-Manager-Konto anmelden, um die App zu nutzen.</div>
+    <label>E-Mail</label>
+    <div><input type="email" id="fb-mail" placeholder="E-Mail" autocomplete="username"></div>
+    <label>Passwort</label>
+    <div><input type="password" id="fb-pass" placeholder="Passwort" autocomplete="current-password"></div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn" onclick="fbManagerLogin()" style="flex:1;justify-content:center">🔐 Anmelden</button>
+    </div>
+    <div id="auth-gate-status" style="font-size:13px;margin-top:10px;font-weight:600"></div>
+  </div>
+</div>
+
+<div class="wrap" id="main-wrap" style="display:none">
 <div class="nav-wrap">
   <div class="nav-grid">
     <button class="app-ico active" onclick="sw('krank',this)">
@@ -979,15 +997,10 @@ window.onerror=function(msg,src,line){
     <div class="card-title">📲 Mitarbeiter-App <span class="badge badge-grn">Cloud</span></div>
     <div class="info"><strong>Datenschutz-Modus:</strong> Daten werden direkt in die Cloud veröffentlicht — keine Datei mehr an Mitarbeiter senden. Mitarbeiter melden sich nur mit ihrer Personalnummer an und sehen ausschließlich die eigene Filiale.</div>
     <label>Manager-Login (Firebase)</label>
-    <div class="row2">
-      <div><input type="text" id="fb-mail" placeholder="E-Mail" autocomplete="username"></div>
-      <div><input type="password" id="fb-pass" placeholder="Passwort" autocomplete="current-password"></div>
-    </div>
-    <div class="btn-row" style="margin-top:8px">
-      <button class="btn" onclick="fbManagerLogin()" style="flex:1;justify-content:center">🔐 Anmelden</button>
+    <div id="fb-login-stat" style="font-size:12px;margin-bottom:8px;font-weight:600;color:var(--mut)">Nicht angemeldet.</div>
+    <div class="btn-row">
       <button class="btn" onclick="fbManagerLogout()" style="flex:1;justify-content:center">Abmelden</button>
     </div>
-    <div id="fb-login-stat" style="font-size:12px;margin-top:8px;font-weight:600;color:var(--mut)">Nicht angemeldet.</div>
     <label>Deine WhatsApp-Nummer (für Rückmeldungen der Mitarbeiter)</label>
     <input type="text" id="st-manager-wa" placeholder="z.B. +49 173 1234567" oninput="localStorage.setItem('sc_manager_wa',this.value)">
     <div class="btn-row">
@@ -4494,9 +4507,11 @@ updateStunden();
 avPopulateDropdown();
 initOrtDatumFields();
 applySettings();
-checkFirstStart();
   renderSavedEmails();
   renderEmpNotif();
+// checkFirstStart() bewusst NICHT hier — laeuft erst nach erfolgreichem
+// Login (siehe authGateHide()/onReady-Kette unten), damit der Ersteinrichtungs-
+// Assistent nicht vor dem Login-Gate sichtbar wird.
 // ════════ FIREBASE (Realtime Urlaub-Freigabe) ════════
 var FB_CONFIG = (typeof window!=='undefined' && window.FB_CONFIG) ? window.FB_CONFIG : null;
 var fbReady=false, fbDb=null, fbPending=[], fbDecided=[], fbManager=false;
@@ -4513,6 +4528,21 @@ function fbPendingCardShow(msg, color){
   if(card) card.style.display='block';
   var st=document.getElementById('fb-pending-status');
   if(st){ st.textContent=msg||''; st.style.color=color||'#6B6860'; st.style.display=msg?'block':'none'; }
+  // #fb-pending-card liegt in panel-urlaub, also in #main-wrap — bis zum
+  // Login bleibt das unsichtbar. Denselben Text zusätzlich aufs Login-Gate
+  // spiegeln, damit Verbindungs-/Konfigurationsfehler dort sichtbar sind.
+  var gs=document.getElementById('auth-gate-status');
+  if(gs){ gs.textContent=msg||''; gs.style.color=color||'#6B6860'; }
+}
+// Blendet das Login-Gate ein/aus + zeigt/versteckt die eigentliche App
+// (#main-wrap) passend dazu — einziger Ort, der das tut.
+function authGateShow(){
+  var g=document.getElementById('auth-gate'); if(g) g.style.display='block';
+  var w=document.getElementById('main-wrap'); if(w) w.style.display='none';
+}
+function authGateHide(){
+  var g=document.getElementById('auth-gate'); if(g) g.style.display='none';
+  var w=document.getElementById('main-wrap'); if(w) w.style.display='';
 }
 // Zeigt die Karte immer an + diagnostiziert den Firebase-Status
 function fbBootStatus(){
@@ -4525,7 +4555,7 @@ function fbBootStatus(){
     fbPendingCardShow('⚠️ Firebase-Bibliothek nicht geladen. Internet/Adblocker prüfen und Seite neu laden.', '#C0392B');
     return;
   }
-  fbInit(function(){ fbStartPending(); nwStartListener(); nwReadsStartListener(); krStartListener(); anStartListener(); blStartListener(); avStartListener(); weStartListener(); ugStartListener(); empsSyncListener(); filialenSyncListener(); });
+  fbInit(function(){ authGateHide(); checkFirstStart(); fbStartPending(); nwStartListener(); nwReadsStartListener(); krStartListener(); anStartListener(); blStartListener(); avStartListener(); weStartListener(); ugStartListener(); empsSyncListener(); filialenSyncListener(); });
 }
 function fbSlug(f){ return (''+f).replace(/\s+/g,'_').toLowerCase(); }
 function fbInit(onReady){
@@ -4543,6 +4573,7 @@ function fbInit(onReady){
           var regions=(doc.exists && doc.data().regions) || [];
           if(!regions.length){
             fbManager=false; activeRegion=null;
+            authGateShow();
             fbPendingCardShow('✓ Angemeldet als '+user.email+', aber keiner Region zugewiesen. Bitte Admin kontaktieren.', '#C0392B');
             return;
           }
@@ -4550,18 +4581,20 @@ function fbInit(onReady){
           regionLoadLabels().then(function(){ regionResolve(regions, onReady); });
         }).catch(function(e){
           fbManager=false;
+          authGateShow();
           fbPendingCardShow('⚠️ Fehler beim Prüfen der Region-Zuweisung: '+e.message, '#C0392B');
         });
       } else {
         fbManager=false; activeRegion=null; __managerRegions=[];
         regionRenderSwitcher();
-        fbPendingCardShow('🔐 Bitte in den Einstellungen mit dem Manager-Konto anmelden (E-Mail/Passwort).', '#B7860B');
+        authGateShow();
+        fbPendingCardShow('🔐 Bitte mit dem Manager-Konto anmelden (E-Mail/Passwort).', '#B7860B');
         var st=document.getElementById('fb-login-stat');
         if(st){ st.textContent='Nicht angemeldet.'; st.style.color='#6B6860'; }
       }
     });
     return true;
-  }catch(e){ console.warn('FB init', e); fbPendingCardShow('⚠️ Firebase-Fehler: '+e.message, '#C0392B'); return false; }
+  }catch(e){ console.warn('FB init', e); authGateShow(); fbPendingCardShow('⚠️ Firebase-Fehler: '+e.message, '#C0392B'); return false; }
 }
 
 // ════════ REGION-AUSWAHL (Ost/West) ════════
