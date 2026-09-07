@@ -612,9 +612,28 @@ async function syncAll() {
     }
     // Wer vorher aktiv war, aber jetzt nicht mehr in der Welo-Liste auftaucht,
     // ist ausgeschieden — genau wie beim bisherigen manuellen CSV-Import.
+    // KRITISCH: empsSnap oben ist ein Read über die GESAMTE "emps"-Collection,
+    // regionsübergreifend (nötig, um bestehende Regionen/Aktiv-Status zu
+    // kennen) — personal enthält aber nur die Mitarbeiter, die DIESES Welo-
+    // Konto sehen kann (bei einem eigenständigen Konto z.B. nur eine einzige
+    // Region). Ohne diese Eingrenzung würde ein zweites Automation-Konto
+    // (eigene REGION, eigener Welo-Login) beim ersten Lauf JEDEN Mitarbeiter
+    // aus JEDER ANDEREN Region fälschlich als "ausgeschieden" markieren, weil
+    // sie in seiner eigenen, viel kleineren Personal-Liste natürlich fehlen
+    // (genau das ist am 07.09.2026 mit dem "hoang"-Konto passiert, das 72
+    // aktive Ost/West-Mitarbeiter deaktiviert hat — siehe Vorfall-Notiz).
+    // Deaktivierung daher nur innerhalb der Region(en), die dieser Lauf
+    // tatsächlich abdeckt (aus den tatsächlich gefundenen personal-Einträgen
+    // abgeleitet, nicht aus process.env.REGION allein — das bestehende
+    // Ost/West-Konto deckt z.B. BEIDE Regionen in einem Lauf ab).
+    const regionenDiesesLaufs = new Set();
+    for (const p of Object.values(personal)) {
+      const r = resolveRegion(p.marktNr);
+      if (r) regionenDiesesLaufs.add(r);
+    }
     let deaktiviert = 0;
     for (const id of bestehendAktiv) {
-      if (!personal[id]) {
+      if (!personal[id] && regionenDiesesLaufs.has(bestehendeRegion[id])) {
         empsBatch.set(db.collection(EMPS_COLLECTION).doc(id), { active: false, updatedAt: now }, { merge: true });
         deaktiviert++;
       }
