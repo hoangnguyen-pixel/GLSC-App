@@ -260,6 +260,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Audit-Log für den Manager-Schnellzugriff "Als Mitarbeiter ansehen"
+    // (server.js: /internal/impersonate-employee) — nur vom Server per Admin-SDK
+    // geschrieben, Manager können ihre eigene Region einsehen.
+    match /manager_impersonation_log/{id} {
+      allow get: if isManagerForRegion(docRegion(resource.data));
+      allow list: if isManagerForRegion(resource.data.region);
+      allow write: if false;
+    }
+
     // ══════════════════════════════════════════════════════════
     // FILIAL RADAR — Umsatz (Welo) + Produktionszeiten (Axonity),
     // regionsübergreifend. Nur vom Automation-Skript per Admin-SDK

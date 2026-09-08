@@ -277,6 +277,39 @@ app.post('/internal/cleanup-departed-employees', async (req, res) => {
   }
 });
 
+// ── Manager-Schnellzugriff: Mitarbeiter-App als bestimmter Mitarbeiter öffnen ──
+// Seit der PIN-Pflicht (employee-auth.js) funktioniert der frühere Workflow
+// "Personalnummer in der Mitarbeiter-App eintippen" nicht mehr ohne den PIN
+// des jeweiligen Mitarbeiters — dieser Endpunkt ersetzt ihn für den
+// Gebietsleiter (Fehlerprüfung, AZ-Konto-Minusstunden schnell checken).
+// Region-geprüft: ein Manager bekommt nur für Mitarbeiter der eigenen
+// Region(en) ein Token, genau wie bei /credentials.
+app.post('/internal/impersonate-employee', requireManager, async (req, res) => {
+  const pid = req.body && req.body.pid ? String(req.body.pid).trim() : '';
+  if (!pid) return res.status(400).json({ error: 'pid fehlt' });
+  try {
+    const db = getDb();
+    const doc = await db.collection('emps').doc(pid).get();
+    if (!doc.exists) return res.status(404).json({ error: 'not_found' });
+    const d = doc.data() || {};
+    if (!req.managerRegions.includes(d.region)) {
+      return res.status(403).json({ error: 'not authorized for this employee\'s region' });
+    }
+    const token = await admin.auth().createCustomToken('emp_' + pid, { pid });
+    // Leichtes Audit-Log — nachvollziehbar, wer wann welchen Mitarbeiter-Account
+    // zu Prüfzwecken geöffnet hat (kein Zugriff nötig, um es einzusehen — reine
+    // Nachvollziehbarkeit, keine aktive Überwachungsfunktion).
+    await db.collection('manager_impersonation_log').add({
+      managerEmail: req.managerEmail, pid, empName: d.name || '', region: d.region || '',
+      at: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    res.status(200).json({ token, name: d.name || '', filiale: d.filiale || '' });
+  } catch (err) {
+    console.error('[impersonate-employee] Fehlgeschlagen:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Filial Radar sync server läuft auf Port ${PORT}`);
 });
