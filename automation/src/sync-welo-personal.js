@@ -54,9 +54,12 @@
 //     Basis) verwendet.
 //   vorjahrMethode: 'geglaettet' (Normalfall, Durchschnitt über 5
 //     Vorjahres-Wochentage) | 'n2-skaliert' (Vorjahreswoche unbrauchbar,
-//     2-Jahre-Wert × Wachstumsrate verwendet) | 'einzeltag' (letzter
-//     Fallback, roher Einzeltageswert) | null (keine robuste Basis
-//     berechenbar → ziel/produktionsziel bleiben null).
+//     2-Jahre-Wert × Wachstumsrate verwendet) | 'einzeltag' (Fallback, roher
+//     Einzeltageswert) | 'neu-eroeffnet' (Filiale hat noch KEIN Vorjahr —
+//     Durchschnitt derselben Wochentage der letzten 1-3 Wochen DIESES Jahres
+//     als Basis, ohne Wachstumsfaktor; Auftrag t.duong 09.09.2026, damit neu
+//     eröffnete Filialen ab Tag 1 ein Umsatzziel sehen statt "kein Ziel") |
+//     null (keine robuste Basis berechenbar → ziel/produktionsziel bleiben null).
 //   wachstumsrate: Summe der letzten 28 Tage ÷ Summe derselben 28 Tage vor
 //     einem Jahr, nur mit genug plausiblen Tagen berechnet, sonst null.
 //   *Verdaechtig-Felder: nur gesetzt, wenn Welo selbst einen unplausibel
@@ -464,6 +467,11 @@ async function berechneStunden(db, empId, emp, ja, planCache) {
 //     Filialen, die real schon schneller wachsen (Auftrag t.duong 03.09.2026).
 const N1_GLAETTUNG_OFFSETS = [-14, -7, 0, 7, 14]; // Tage relativ zum Vorjahresdatum, exakt gleicher Wochentag
 const TREND_TAGE = 28;
+// Fallback für Filialen ganz ohne Vorjahresdaten (neu eröffnet, siehe Methode
+// 'neu-eroeffnet' oben): dieselben Wochentage der letzten 1-3 Wochen DIESES
+// Jahres — liegen bereits im TREND_TAGE-Fenster (0..-27 Tage), brauchen daher
+// keinen zusätzlichen Seitenaufruf.
+const NEU_EROEFFNET_OFFSETS = [-7, -14, -21];
 
 function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
 
@@ -704,6 +712,21 @@ async function syncAll() {
         } else if (uVorjahrRoh != null && uVorjahrRoh >= UMSATZ_MIN_PLAUSIBEL) {
           basis = uVorjahrRoh; // letzter Fallback: der einzelne Vorjahres-Tageswert war doch plausibel
           methode = 'einzeltag';
+        }
+      }
+
+      // D) Filiale ganz ohne Vorjahresdaten (neu eröffnet — weder A noch C
+      // oben lieferten irgendetwas): Durchschnitt derselben Wochentage der
+      // letzten 1-3 Wochen DIESES Jahres als Basis, statt gar kein Ziel zu
+      // zeigen. Kein Wachstumsfaktor anwendbar (nichts zum Vergleichen), der
+      // effektive Faktor unten fällt dadurch automatisch auf ZIEL_FAKTOR zurück.
+      if (basis == null) {
+        const kurzWerte = NEU_EROEFFNET_OFFSETS
+          .map((off) => getUmsatzPlausibel(marktNr, addDays(heute, off)))
+          .filter((v) => v != null);
+        if (kurzWerte.length >= 1) {
+          basis = kurzWerte.reduce((s, v) => s + v, 0) / kurzWerte.length;
+          methode = 'neu-eroeffnet';
         }
       }
 
