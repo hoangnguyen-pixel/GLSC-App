@@ -83,6 +83,29 @@ async function readBestellungen(page) {
   await page.locator('table').first().waitFor({ timeout: 15000 });
   await page.waitForTimeout(500); // Blazor rendert kurz nach — sonst evtl. 0 Zeilen mitten im Re-Render erwischt
 
+  // Dieselbe Paginierungs-Falle wie in sync-axonity-produktion.js (live
+  // entdeckt am 09.09.2026, hier live geprüft: "1-25 von 125" auf /pickups/)
+  // — Standard 25 Zeilen/Seite, "Alle Bestellungen" hat aber weit mehr.
+  // Bisher unkritisch, weil neue Bestellungen dank absteigender Sortierung
+  // nach Bestellzeit immer ganz oben stehen und so auf Seite 1 sichtbar
+  // bleiben — betrifft aber bereits erfasste ÄLTERE Bestellungen: deren
+  // Felder (Storniert/Übertragen/Bearbeitet) werden nie mehr aktualisiert,
+  // sobald sie über Seite 1 hinausrutschen. "Zeilen pro Seite" auf die
+  // größte verfügbare Option stellen behebt beides.
+  const perPageSelect = page.locator('.mud-table-pagination-select');
+  const pageSizeOptions = page.locator('[role="option"]');
+  await perPageSelect.click();
+  await page.waitForTimeout(400);
+  if ((await pageSizeOptions.count()) === 0) {
+    await perPageSelect.click();
+    await page.waitForTimeout(400);
+  }
+  if ((await pageSizeOptions.count()) > 0) {
+    await pageSizeOptions.last().click();
+    await page.waitForTimeout(500);
+    await page.locator('table').first().waitFor({ timeout: 15000 });
+  }
+
   const rows = await page.locator('table tbody tr').all();
   const bestellungen = [];
   let rawCount = 0;

@@ -104,9 +104,10 @@ async function listMarkets(page) {
   // Die Tabelle paginiert standardmäßig auf 25 Zeilen/Seite (MudBlazor) —
   // bei mehr als 25 eigenen Filialen (aktuell 29) wurden Filialen ab Zeile 26
   // NIE gelesen (live entdeckt am 09.09.2026: nur "25 Filialen gefunden",
-  // obwohl Axonity selbst 29 anzeigt). "Zeilen pro Seite" auf 100 stellen,
-  // statt mühsam durch Seiten zu klicken — deutlich über der aktuellen
-  // Filialzahl, damit immer alles auf einer Seite steht.
+  // obwohl Axonity selbst 29 anzeigt). "Zeilen pro Seite" auf die größte
+  // verfügbare Option stellen (nicht "100" fest verdrahtet — falls die
+  // Filialzahl irgendwann über 100 wächst, greift derselbe Bug sonst wieder),
+  // statt mühsam durch Seiten zu klicken.
   const perPageSelect = page.locator('.mud-table-pagination-select');
   await perPageSelect.click();
   await page.waitForTimeout(400);
@@ -114,7 +115,7 @@ async function listMarkets(page) {
     await perPageSelect.click();
     await page.waitForTimeout(400);
   }
-  await page.getByRole('option', { name: '100', exact: true }).click();
+  await options.last().click();
   await page.waitForTimeout(500);
   await page.locator('table tbody tr').first().waitFor({ timeout: 15000 });
 
