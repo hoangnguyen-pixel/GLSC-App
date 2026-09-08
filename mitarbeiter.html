@@ -213,6 +213,9 @@ window.onerror=function(msg,src,line){
     </div>
     <label data-i18n="lbl_pid">Personalnummer</label>
     <input type="tel" id="login-pid" inputmode="numeric" placeholder="z.B. 1042" autocomplete="off">
+    <label data-i18n="lbl_pin" style="margin-top:10px">PIN (4-6 Ziffern)</label>
+    <input type="password" id="login-pin" inputmode="numeric" maxlength="6" placeholder="••••" autocomplete="off">
+    <div id="login-pin-hint" style="font-size:11.5px;color:var(--mut);margin-top:4px" data-i18n="pin_hint">Erster Login: du legst deinen PIN hier selbst fest — merk ihn dir gut.</div>
     <div style="margin-top:16px"><button class="btn btn-red" onclick="maDoLogin()" data-i18n="btn_login">Anmelden</button></div>
     <div class="login-err" id="login-err"></div>
     <div id="login-nodata" style="display:none;margin-top:18px;font-size:12px;color:var(--mut);line-height:1.6">
@@ -647,22 +650,50 @@ var maNews=[], maNewsUnsub=null;
 var maNewsReads={}, maNewsReadsUnsub=null;
 function fbSlug(f){ return (''+f).replace(/\s+/g,'_').toLowerCase(); }
 function fbEnabled(){ return !!(FB_CONFIG && FB_CONFIG.apiKey && typeof firebase!=='undefined'); }
-function fbInit(onReady){
+// Backend für die PIN-Anmeldung (automation/src/employee-auth.js) — egal welche
+// der beiden Cloud-Run-Regionen das bedient, beide haben denselben Code und
+// vollen Admin-SDK-Zugriff auf alle Regionen; die Wahl hier ist rein technisch,
+// nicht an die Region des jeweiligen Mitarbeiters gebunden.
+var EMPLOYEE_AUTH_URL = 'https://filial-radar-ostwest-565990660261.europe-west3.run.app';
+// Stellt Firebase-App + Firestore bereit, OHNE sich anzumelden — gebraucht,
+// bevor der Mitarbeiter PID+PIN eingegeben hat (maDoLogin ruft danach selbst
+// signInWithCustomToken auf). fbInit() (unten) baut darauf auf und wartet
+// zusätzlich auf eine bereits bestehende oder neue Anmeldung.
+function fbEnsureApp(){
   if(!fbEnabled()) return false;
   try{
     if(!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
-    fbDb=firebase.firestore();
-    // OFFLINE-PERSISTENZ: Schreibvorgänge werden lokal gepuffert und automatisch
-    // synchronisiert, sobald wieder Netz da ist (wichtig im Lager ohne Empfang).
-    try{
-      fbDb.enablePersistence({synchronizeTabs:true}).catch(function(err){
-        console.warn('FB persistence nicht aktiv:', err && err.code);
-      });
-    }catch(e){ console.warn('FB persistence Fehler', e); }
-    firebase.auth().signInAnonymously().then(function(){ fbReady=true; if(onReady)onReady(); })
-      .catch(function(e){ console.warn('FB auth fehlgeschlagen', e); });
+    if(!fbDb){
+      fbDb=firebase.firestore();
+      // OFFLINE-PERSISTENZ: Schreibvorgänge werden lokal gepuffert und automatisch
+      // synchronisiert, sobald wieder Netz da ist (wichtig im Lager ohne Empfang).
+      try{
+        fbDb.enablePersistence({synchronizeTabs:true}).catch(function(err){
+          console.warn('FB persistence nicht aktiv:', err && err.code);
+        });
+      }catch(e){ console.warn('FB persistence Fehler', e); }
+    }
     return true;
   }catch(e){ console.warn('FB init fehlgeschlagen', e); return false; }
+}
+// Wartet auf eine (ggf. schon von einem früheren PIN-Login bestehende, per
+// Firebase automatisch über Neustarts hinweg gemerkte) Anmeldung und ruft
+// dann onReady auf. Meldet NICHT mehr selbst anonym an — das ersetzt seit der
+// PIN-Anmeldung (siehe maDoLogin) die eigentliche Identitätsprüfung, ein
+// anonymer Fallback hier würde das wieder aushebeln.
+function fbInit(onReady){
+  if(!fbEnsureApp()) return false;
+  if(firebase.auth().currentUser){ fbReady=true; if(onReady)onReady(); return true; }
+  var unsub=firebase.auth().onAuthStateChanged(function(user){
+    unsub();
+    if(user){ fbReady=true; if(onReady)onReady(); }
+    else if(maSession()){
+      // Sitzung ungültig geworden (z.B. Browserdaten teilweise gelöscht) —
+      // zurück zum Login, PIN muss erneut eingegeben werden.
+      maSetSession(null); maShowLogin();
+    }
+  });
+  return true;
 }
 // Baut das Firestore-Dokument für einen Urlaubsantrag (testbar)
 function maBuildUrlaubDoc(sess, from, to){
@@ -1944,7 +1975,9 @@ de:{_name:'Deutsch',
  bl_st_new:'Eingereicht',bl_st_skovik:'In Skovik hochgeladen',bl_st_paid:'Überwiesen',
  bl_paid_banner:'💰 Geld wurde überwiesen!',bl_confirm_btn:'✓ Geld erhalten — bestätigen',bl_confirmed:'✓ Bestätigt, danke!',
  login_sub:'Sushi Circle · Bitte mit deiner Personalnummer anmelden.',lbl_pid:'Personalnummer',btn_login:'Anmelden',
+ lbl_pin:'PIN (4-6 Ziffern)',pin_hint:'Erster Login: du legst deinen PIN hier selbst fest — am einfachsten denselben PIN wie für die Zeiterfassung (Time-PIN), dann musst du dir nichts Neues merken.',pin_created:'✓ PIN festgelegt — merk ihn dir für den nächsten Login.',
  err_pid:'Bitte Personalnummer eingeben.',err_notfound:'Personalnummer nicht gefunden. Bitte prüfen.',err_nodata:'Keine Daten geladen. Bitte zuerst Daten laden.',err_conn:'Verbindungsfehler: ',err_inactive:'Dieser Zugang ist nicht mehr aktiv. Bitte an den Vorgesetzten wenden.',
+ err_pin_format:'PIN muss 4-6 Ziffern haben.',err_pin_wrong:'Falscher PIN. Bitte erneut versuchen.',err_pin_locked:'Zu viele Fehlversuche — bitte in 15 Minuten erneut versuchen oder den Gebietsleiter um Zurücksetzen bitten.',
  btn_logout:'Abmelden',q_logout:'Abmelden?',no_fil:'keine Filiale',
  dp_title:'📅 Mein Dienstplan',lbl_month:'Monat',fil:'Filiale',alloc_main:'Stammfiliale',alloc_backup:'Bei Bedarf Einsatz in',
  st_gestern_ok:'✅ Gestern ({d}): genau wie geplant gearbeitet.', st_gestern_mehr:'🟡 Gestern ({d}): {n} Std. mehr als geplant.',
@@ -2055,7 +2088,9 @@ vi:{_name:'Tiếng Việt',
  bl_st_new:'Đã gửi',bl_st_skovik:'Đã tải lên Skovik',bl_st_paid:'Đã chuyển khoản',
  bl_paid_banner:'💰 Tiền đã được chuyển khoản!',bl_confirm_btn:'✓ Đã nhận tiền — xác nhận',bl_confirmed:'✓ Đã xác nhận, cảm ơn!',
  login_sub:'Sushi Circle · Đăng nhập bằng mã số nhân viên.',lbl_pid:'Mã số nhân viên',btn_login:'Đăng nhập',
+ lbl_pin:'Mã PIN (4-6 số)',pin_hint:'Lần đăng nhập đầu tiên: bạn tự đặt mã PIN ở đây — dễ nhất là dùng luôn mã PIN chấm công (Time-PIN) đang có, để khỏi phải nhớ thêm số mới.',pin_created:'✓ Đã đặt mã PIN — hãy nhớ để lần sau đăng nhập.',
  err_pid:'Vui lòng nhập mã số nhân viên.',err_notfound:'Không tìm thấy mã số. Vui lòng kiểm tra lại.',err_nodata:'Chưa có dữ liệu. Vui lòng tải dữ liệu trước.',err_conn:'Lỗi kết nối: ',err_inactive:'Tài khoản này không còn hoạt động. Vui lòng liên hệ quản lý.',
+ err_pin_format:'Mã PIN phải có 4-6 chữ số.',err_pin_wrong:'Sai mã PIN. Vui lòng thử lại.',err_pin_locked:'Sai quá nhiều lần — vui lòng thử lại sau 15 phút hoặc nhờ Gebietsleiter đặt lại mã PIN.',
  btn_logout:'Đăng xuất',q_logout:'Đăng xuất?',no_fil:'chưa có cửa hàng',
  dp_title:'📅 Lịch làm của tôi',lbl_month:'Tháng',fil:'Cửa hàng',alloc_main:'Cửa hàng chính',alloc_backup:'Hỗ trợ khi cần tại',
  st_gestern_ok:'✅ Hôm qua ({d}): làm đúng số giờ theo kế hoạch.', st_gestern_mehr:'🟡 Hôm qua ({d}): làm dư {n} giờ so với kế hoạch.',
@@ -2166,7 +2201,9 @@ en:{_name:'English',
  bl_st_new:'Submitted',bl_st_skovik:'Uploaded to Skovik',bl_st_paid:'Transferred',
  bl_paid_banner:'💰 Money has been transferred!',bl_confirm_btn:'✓ Money received — confirm',bl_confirmed:'✓ Confirmed, thank you!',
  login_sub:'Sushi Circle · Sign in with your employee number.',lbl_pid:'Employee number',btn_login:'Sign in',
+ lbl_pin:'PIN (4-6 digits)',pin_hint:'First login: choose your own PIN here — easiest is to reuse your existing time-clock PIN (Time-PIN), so you don\'t need to remember a new number.',pin_created:'✓ PIN set — remember it for your next login.',
  err_pid:'Please enter your employee number.',err_notfound:'Employee number not found. Please check.',err_nodata:'No data loaded. Please load data first.',err_conn:'Connection error: ',err_inactive:'This account is no longer active. Please contact your manager.',
+ err_pin_format:'PIN must be 4-6 digits.',err_pin_wrong:'Wrong PIN. Please try again.',err_pin_locked:'Too many wrong attempts — please try again in 15 minutes or ask your manager to reset your PIN.',
  btn_logout:'Log out',q_logout:'Log out?',no_fil:'no store',
  dp_title:'📅 My schedule',lbl_month:'Month',fil:'Store',alloc_main:'Main store',alloc_backup:'Backup duty at',
  st_gestern_ok:'✅ Yesterday ({d}): worked exactly as planned.', st_gestern_mehr:'🟡 Yesterday ({d}): {n} hrs more than planned.',
@@ -2277,7 +2314,9 @@ th:{_name:'ไทย',
  bl_st_new:'ส่งแล้ว',bl_st_skovik:'อัปโหลดไปยัง Skovik แล้ว',bl_st_paid:'โอนเงินแล้ว',
  bl_paid_banner:'💰 โอนเงินแล้ว!',bl_confirm_btn:'✓ ได้รับเงินแล้ว – ยืนยัน',bl_confirmed:'✓ ยืนยันแล้ว ขอบคุณ!',
  login_sub:'Sushi Circle · เข้าสู่ระบบด้วยรหัสพนักงาน',lbl_pid:'รหัสพนักงาน',btn_login:'เข้าสู่ระบบ',
+ lbl_pin:'รหัส PIN (4-6 หลัก)',pin_hint:'เข้าสู่ระบบครั้งแรก: กำหนดรหัส PIN ของคุณเองที่นี่ — ง่ายที่สุดคือใช้รหัส Time-PIN (บันทึกเวลาทำงาน) เดิมที่มีอยู่แล้ว จะได้ไม่ต้องจำเลขใหม่',pin_created:'✓ ตั้งรหัส PIN แล้ว — จำไว้สำหรับการเข้าสู่ระบบครั้งถัดไป',
  err_pid:'กรุณากรอกรหัสพนักงาน',err_notfound:'ไม่พบรหัสพนักงาน กรุณาตรวจสอบ',err_nodata:'ยังไม่มีข้อมูล กรุณาโหลดข้อมูลก่อน',err_conn:'การเชื่อมต่อล้มเหลว: ',err_inactive:'บัญชีนี้ไม่ได้ใช้งานแล้ว กรุณาติดต่อผู้จัดการ',
+ err_pin_format:'รหัส PIN ต้องมี 4-6 หลัก',err_pin_wrong:'รหัส PIN ไม่ถูกต้อง กรุณาลองใหม่',err_pin_locked:'ลองผิดหลายครั้งเกินไป — กรุณาลองใหม่ใน 15 นาที หรือขอให้ผู้จัดการรีเซ็ตรหัส PIN',
  btn_logout:'ออกจากระบบ',q_logout:'ออกจากระบบ?',no_fil:'ไม่มีสาขา',
  dp_title:'📅 ตารางงานของฉัน',lbl_month:'เดือน',fil:'สาขา',alloc_main:'สาขาหลัก',alloc_backup:'ช่วยงานเมื่อจำเป็นที่',
  st_gestern_ok:'✅ เมื่อวาน ({d}): ทำงานตรงตามแผนพอดี', st_gestern_mehr:'🟡 เมื่อวาน ({d}): ทำงานเกินแผน {n} ชม.',
@@ -2388,7 +2427,9 @@ zh:{_name:'中文',
  bl_st_new:'已提交',bl_st_skovik:'已上传至Skovik',bl_st_paid:'已转账',
  bl_paid_banner:'💰 款项已转账！',bl_confirm_btn:'✓ 已收到款项 — 确认',bl_confirmed:'✓ 已确认，谢谢！',
  login_sub:'Sushi Circle · 请使用您的员工编号登录。',lbl_pid:'员工编号',btn_login:'登录',
+ lbl_pin:'PIN 码（4-6位数字）',pin_hint:'首次登录：请在此自行设置您的 PIN 码 — 最简单的方法是直接使用您现有的考勤 PIN 码（Time-PIN），这样就不用记新的号码了。',pin_created:'✓ PIN 码已设置 — 请记住，下次登录需要用到。',
  err_pid:'请输入员工编号。',err_notfound:'未找到该员工编号，请检查。',err_nodata:'尚未加载数据，请先加载数据。',err_conn:'连接错误：',err_inactive:'此账号已不再激活，请联系您的主管。',
+ err_pin_format:'PIN 码必须为 4-6 位数字。',err_pin_wrong:'PIN 码错误，请重试。',err_pin_locked:'错误次数过多 — 请15分钟后重试，或联系主管重置 PIN 码。',
  btn_logout:'退出登录',q_logout:'确定要退出登录吗？',no_fil:'暂无门店',
  dp_title:'📅 我的排班表',lbl_month:'月份',fil:'门店',alloc_main:'主要门店',alloc_backup:'需要时支援',
  st_gestern_ok:'✅ 昨天（{d}）：工时与排班一致。', st_gestern_mehr:'🟡 昨天（{d}）：比排班多做了{n}小时。',
@@ -2660,27 +2701,44 @@ function maShowLogin(){
   document.getElementById('app').style.display='none';
   document.getElementById('login-nodata').style.display=(fbEnabled()||maLoadBundle())?'none':'block';
 }
+var maLoginBusy=false;
 function maDoLogin(){
   var pid=document.getElementById('login-pid').value.trim();
   var err=document.getElementById('login-err');
   if(!pid){err.textContent=t('err_pid');err.style.display='block';return;}
   if(fbEnabled()){
+    var pin=(document.getElementById('login-pin').value||'').trim();
+    if(!/^\d{4,6}$/.test(pin)){err.textContent=t('err_pin_format');err.style.display='block';return;}
+    if(maLoginBusy) return;
+    maLoginBusy=true;
     err.textContent='';err.style.display='none';
-    var btnErr=function(msg){err.textContent=msg;err.style.display='block';};
-    var proceed=function(){
-      fbDb.collection('emps').doc(pid).get().then(function(doc){
-        if(!doc.exists){btnErr(t('err_notfound'));return;}
-        var d=doc.data()||{};
-        if(d.active===false){btnErr(t('err_inactive'));return;}
-        var sess={id:pid,name:d.name||'',filiale:d.filiale||'',zweit:d.zweit||[],region:d.region||''};
-        maSetSession(sess);
-        fbDb.collection('meta').doc('config').get().then(function(cfg){
-          if(cfg.exists && cfg.data().managerWa) localStorage.setItem('ma_wa', cfg.data().managerWa);
-        }).catch(function(){});
-        maShowApp(sess);
-      }).catch(function(e){btnErr(t('err_conn')+e.message);});
-    };
-    if(fbReady) proceed(); else fbInit(proceed);
+    var btnErr=function(msg){err.textContent=msg;err.style.display='block';maLoginBusy=false;};
+    fbEnsureApp();
+    fetch(EMPLOYEE_AUTH_URL+'/employee/login',{
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pid:pid,pin:pin})
+    }).then(function(r){
+      return r.json().then(function(j){ if(!r.ok) throw new Error(j.error||('HTTP '+r.status)); return j; });
+    }).then(function(j){
+      return firebase.auth().signInWithCustomToken(j.token).then(function(){
+        fbReady=true;
+        return fbDb.collection('emps').doc(pid).get().then(function(doc){
+          if(!doc.exists){btnErr(t('err_notfound'));return;}
+          var d=doc.data()||{};
+          if(d.active===false){btnErr(t('err_inactive'));return;}
+          var sess={id:pid,name:d.name||'',filiale:d.filiale||'',zweit:d.zweit||[],region:d.region||''};
+          maSetSession(sess);
+          maLoginBusy=false;
+          fbDb.collection('meta').doc('config').get().then(function(cfg){
+            if(cfg.exists && cfg.data().managerWa) localStorage.setItem('ma_wa', cfg.data().managerWa);
+          }).catch(function(){});
+          if(j.isNewPin) toast(t('pin_created'));
+          maShowApp(sess);
+        });
+      });
+    }).catch(function(e){
+      var map={not_found:t('err_notfound'), inactive:t('err_inactive'), wrong_pin:t('err_pin_wrong'), locked:t('err_pin_locked'), pin_format:t('err_pin_format')};
+      btnErr(map[e.message]||(t('err_conn')+e.message));
+    });
     return;
   }
   if(!maLoadBundle()){err.textContent=t('err_nodata');err.style.display='block';return;}
@@ -2690,7 +2748,15 @@ function maDoLogin(){
   var sess={id:emp.id,name:emp.name,filiale:emp.filiale||'',zweit:emp.zweit||[]};
   maSetSession(sess);maShowApp(sess);
 }
-function maLogout(){if(confirm(t('q_logout'))){maSetSession(null);document.getElementById('login-pid').value='';maShowLogin();}}
+function maLogout(){
+  if(confirm(t('q_logout'))){
+    maSetSession(null);
+    document.getElementById('login-pid').value='';
+    var pinEl=document.getElementById('login-pin'); if(pinEl) pinEl.value='';
+    if(fbEnabled()){ try{ firebase.auth().signOut(); }catch(e){} }
+    maShowLogin();
+  }
+}
 function maShowApp(sess){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
@@ -4016,6 +4082,7 @@ function avESend(){
 function toast(msg,err){var t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(err?' err':'');setTimeout(function(){t.className='toast';},2800);}
 document.getElementById('import-modal').addEventListener('click',function(e){if(e.target===this)maCloseImport();});
 document.getElementById('login-pid').addEventListener('keydown',function(e){if(e.key==='Enter')maDoLogin();});
+document.getElementById('login-pin').addEventListener('keydown',function(e){if(e.key==='Enter')maDoLogin();});
 
 /* ── PWA: Installieren ── */
 var instPrompt=null;

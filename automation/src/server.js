@@ -16,6 +16,8 @@ const express = require('express');
 const { getDb, admin } = require('./firestore-client');
 const { runOne, runAll, runFile } = require('./sync-runner');
 const { setSecret } = require('./secrets-client');
+const { cleanupKrankmeldungFotos } = require('./cleanup-krankmeldung');
+const { employeeLogin } = require('./employee-auth');
 
 // getDb() ruft intern admin.initializeApp() auf — muss VOR dem ersten
 // admin.auth()-Aufruf passiert sein (sonst "default Firebase app does not
@@ -218,6 +220,43 @@ app.post('/internal/inventur-apply', requireManager, async (req, res) => {
     res.status(result.ok ? 200 : 500).json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Datenschutz: Krankmeldungs-Fotos automatisch nach 30 Tagen löschen ────
+// Region-unabhängig (gilt für alle Gebiete gleich, s. cleanup-krankmeldung.js)
+// — bewusst der gleiche Shared-Secret-Mechanismus wie die anderen
+// Scheduler-Routen, kein Mensch soll das manuell auslösen müssen.
+app.post('/internal/cleanup-krankmeldung-fotos', async (req, res) => {
+  if (!SYNC_SHARED_SECRET || req.get('X-Sync-Secret') !== SYNC_SHARED_SECRET) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  try {
+    const result = await cleanupKrankmeldungFotos();
+    res.status(200).json({ status: 'ok', ...result });
+  } catch (err) {
+    console.error('[cleanup-krankmeldung] Fehlgeschlagen:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Mitarbeiter-Login: PID + PIN statt anonym + PID ───────────────────────
+// Bewusst ohne requireManager/Shared-Secret — Mitarbeiter sind an dieser
+// Stelle noch nicht angemeldet. Der Schutz gegen Erraten ist die
+// PIN-Sperre in employee-auth.js (5 Fehlversuche → 15 Min. Sperre pro PID),
+// nicht ein Header-Geheimnis. Region-unabhängig: läuft egal auf welcher der
+// beiden Cloud-Run-Instanzen, da Admin SDK ohnehin alle Regionen sieht.
+app.post('/employee/login', async (req, res) => {
+  const b = req.body || {};
+  const pid = typeof b.pid === 'string' ? b.pid.trim().slice(0, 40) : '';
+  const pin = typeof b.pin === 'string' ? b.pin.trim() : '';
+  try {
+    const result = await employeeLogin(pid, pin);
+    res.status(200).json(result);
+  } catch (err) {
+    const status = err.status || 500;
+    if (status === 500) console.error('[employee-login] Fehlgeschlagen:', err.message);
+    res.status(status).json({ error: err.message, attemptsLeft: err.attemptsLeft });
   }
 });
 

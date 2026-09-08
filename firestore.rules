@@ -36,6 +36,21 @@ service cloud.firestore {
     function docRegion(data) {
       return data.get('region', 'ost');
     }
+    // Mitarbeiter melden sich seit der PIN-Anmeldung (automation/src/employee-auth.js)
+    // mit einem Custom Token an, dessen uid `emp_<Personalnummer>` lautet und das
+    // einen Claim `pid` mit genau dieser Personalnummer trägt — das bindet ihre
+    // Firebase-Identität an GENAU eine Personalnummer. Vorher war jeder
+    // Mitarbeiter-Login rein anonym (irgendein Nutzer ist angemeldet, aber
+    // welcher, ließ sich serverseitig nicht prüfen) — jede beliebige Personalnummer
+    // konnte für Schreibvorgänge vorgetäuscht werden. Eine alte, vor diesem Update
+    // signierte anonyme Sitzung hat keinen pid-Claim und fällt hier auf null/false
+    // zurück — das ist beabsichtigt, sie muss sich einmal neu anmelden.
+    function ownPid() {
+      return isAuthed() ? request.auth.token.get('pid', null) : null;
+    }
+    function isOwnEmp(empId) {
+      return ownPid() != null && ownPid() == empId;
+    }
 
     // ══════════════════════════════════════════════════════════
     // REGION-MAPPING (new)
@@ -104,9 +119,10 @@ service cloud.firestore {
     // Der Status muss dabei "pending" bleiben — niemand kann sich selbst genehmigen —
     // und ausser from/to/updated darf kein Feld angefasst werden.
     match /filialen/{f}/urlaub/{u} {
-      allow read, create: if isAuthed();
+      allow read: if isAuthed();
+      allow create: if isOwnEmp(request.resource.data.empId);
       allow update: if isManagerForRegion(docRegion(resource.data))
-        || (isAuthed()
+        || (isOwnEmp(resource.data.empId)
             && resource.data.status == 'pending'
             && request.resource.data.status == 'pending'
             && request.resource.data.diff(resource.data).affectedKeys()
@@ -139,13 +155,14 @@ service cloud.firestore {
     // KRANKMELDUNG / URLAUBSANTRAG (Antrag-Paket)
     // ══════════════════════════════════════════════════════════
     match /krank/{k} {
-      allow create: if isAuthed();
+      allow create: if isOwnEmp(request.resource.data.empId);
       allow get: if isManagerForRegion(docRegion(resource.data));
       allow list: if isManagerForRegion(resource.data.region);
       allow update, delete: if isManagerForRegion(docRegion(resource.data));
     }
     match /antrag/{a} {
-      allow create: if isAuthed();
+      // Feld heißt hier "id", nicht "empId" (siehe maSendAntrag in mitarbeiter.html).
+      allow create: if isOwnEmp(request.resource.data.id);
       allow get: if isManagerForRegion(docRegion(resource.data));
       allow list: if isManagerForRegion(resource.data.region);
       allow update, delete: if isManagerForRegion(docRegion(resource.data));
@@ -160,10 +177,10 @@ service cloud.firestore {
     // delete: nur Manager der zuständigen Region
     // ══════════════════════════════════════════════════════════
     match /receipts/{k} {
-      allow create: if isAuthed();
+      allow create: if isOwnEmp(request.resource.data.empId);
       allow read: if isAuthed();
       allow update: if isManagerForRegion(docRegion(resource.data))
-        || (isAuthed()
+        || (isOwnEmp(resource.data.empId)
             && resource.data.status == 'paid'
             && request.resource.data.status == 'confirmed'
             && request.resource.data.diff(resource.data).affectedKeys()
@@ -180,7 +197,7 @@ service cloud.firestore {
       allow create: if isManagerForRegion(request.resource.data.region);
       allow read: if isAuthed();
       allow update: if isManagerForRegion(docRegion(resource.data))
-        || (isAuthed()
+        || (isOwnEmp(resource.data.empId)
             && resource.data.status == 'sent'
             && request.resource.data.status == 'signed'
             && request.resource.data.diff(resource.data).affectedKeys()
@@ -192,7 +209,7 @@ service cloud.firestore {
     // WARENEINGANG-REKLAMATION
     // ══════════════════════════════════════════════════════════
     match /wareneingang/{w} {
-      allow create: if isAuthed();
+      allow create: if isOwnEmp(request.resource.data.empId);
       allow get: if isManagerForRegion(docRegion(resource.data));
       allow list: if isManagerForRegion(resource.data.region);
       allow update, delete: if isManagerForRegion(docRegion(resource.data));
@@ -202,7 +219,7 @@ service cloud.firestore {
     // UMLAGERUNG
     // ══════════════════════════════════════════════════════════
     match /umlagerung/{u} {
-      allow create: if isAuthed();
+      allow create: if isOwnEmp(request.resource.data.empId);
       allow get: if isManagerForRegion(docRegion(resource.data));
       allow list: if isManagerForRegion(resource.data.region);
       allow update, delete: if isManagerForRegion(docRegion(resource.data));

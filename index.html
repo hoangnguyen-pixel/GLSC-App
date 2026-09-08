@@ -1387,6 +1387,11 @@ window.onerror=function(msg,src,line){
         <div style="font-size:12px;color:var(--mut)">Darf Dienstpläne <strong>aller Filialen der Region</strong> planen und den Inventur-Stand einsehen. Krankmeldungen, Belege, Urlaubsfreigaben und Verträge bleiben verborgen.</div>
       </div>
     </div>
+    <div id="m-pin-reset-wrap" style="display:none;margin-top:12px;padding:10px 12px;background:var(--bg);border:1px solid var(--brd);border-radius:var(--rs)">
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px">🔑 PIN (Mitarbeiter-App)</div>
+      <div style="font-size:12px;color:var(--mut);margin-bottom:8px">PIN vergessen oder Missbrauch vermutet? Zurücksetzen — beim nächsten Login der Mitarbeiter-App legt die Person einen neuen PIN fest.</div>
+      <button class="btn btn-sm" onclick="mResetPin()" id="m-pin-reset-btn">🔑 PIN zurücksetzen</button>
+    </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal()">Abbrechen</button>
       <button class="btn btn-red" onclick="saveEmp()">Speichern</button>
@@ -1988,6 +1993,7 @@ function openAddModal() {
   document.getElementById('m-region-hint').textContent='Region: '+(REGION_LABELS[activeRegion]||activeRegion||'—');
   document.getElementById('m-shopleiter').checked=false;
   document.getElementById('m-vize').checked=false;
+  document.getElementById('m-pin-reset-wrap').style.display='none';
   document.getElementById('emp-modal').classList.add('open');
   document.getElementById('m-name').focus();
 }
@@ -2006,8 +2012,32 @@ function openEditModal(i) {
   document.getElementById('m-region-hint').textContent='Region: '+(REGION_LABELS[activeRegion]||activeRegion||'—');
   document.getElementById('m-shopleiter').checked=!!(e.shopleiter);
   document.getElementById('m-vize').checked=!!(e.vize);
+  document.getElementById('m-pin-reset-wrap').style.display=(fbReady&&fbDb)?'block':'none';
   document.getElementById('emp-modal').classList.add('open');
   document.getElementById('m-name').focus();
+}
+
+// PIN der Mitarbeiter-App zurücksetzen (Passwort-vergessen-Fall — es gibt
+// keinen zweiten Faktor wie E-Mail, daher muss der Gebietsleiter das übernehmen).
+// Löscht nur die PIN-Felder, alle anderen Mitarbeiterdaten bleiben unangetastet;
+// beim nächsten Login in der Mitarbeiter-App legt die Person selbst einen neuen fest.
+function mResetPin(){
+  const id=document.getElementById('m-id').value.trim();
+  if(!id||!fbReady||!fbDb) return;
+  if(!confirm('PIN für Personalnummer '+id+' wirklich zurücksetzen? Die Person muss sich beim nächsten Login einen neuen PIN vergeben.')) return;
+  const btn=document.getElementById('m-pin-reset-btn');
+  btn.disabled=true; btn.textContent='⏳ …';
+  fbDb.collection('emps').doc(id).update({
+    pinHash: firebase.firestore.FieldValue.delete(),
+    pinFailCount: firebase.firestore.FieldValue.delete(),
+    pinLockedUntil: firebase.firestore.FieldValue.delete(),
+  }).then(function(){
+    toast('✓ PIN zurückgesetzt');
+    btn.disabled=false; btn.textContent='🔑 PIN zurücksetzen';
+  }).catch(function(e){
+    alert('Fehler: '+e.message);
+    btn.disabled=false; btn.textContent='🔑 PIN zurücksetzen';
+  });
 }
 
 function closeModal() { document.getElementById('emp-modal').classList.remove('open'); }
