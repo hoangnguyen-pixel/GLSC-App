@@ -233,6 +233,16 @@ service cloud.firestore {
     match /inventur_storemap/{id} { allow read, write: if isAuthed(); }
     match /inventur_counts/{id}   { allow read, write: if isAuthed(); }
 
+    // Welo-Abgleich-Vorschau (sync-inventur-diff.js/sync-inventur-apply.js) —
+    // anders als die Collections oben nur für Manager sichtbar (enthält
+    // Mengen-Abweichungen, kein Mitarbeiter-Anwendungsfall dafür) und nur per
+    // Admin-SDK beschrieben, genau wie die Filial-Radar-Collections unten.
+    match /inventur_welo_preview/{id} {
+      allow get: if isManagerForRegion(docRegion(resource.data));
+      allow list: if isManagerForRegion(resource.data.region);
+      allow write: if false;
+    }
+
     // ══════════════════════════════════════════════════════════
     // FILIAL RADAR — Umsatz (Welo) + Produktionszeiten (Axonity),
     // regionsübergreifend. Nur vom Automation-Skript per Admin-SDK

@@ -1230,6 +1230,19 @@ window.onerror=function(msg,src,line){
     </div>
     <div id="inv-submissions"></div>
   </div>
+
+  <!-- Nur sichtbar für Regionen mit eigenem Cloud-Run-Konto (wie die Filial-
+       Radar-Zugangsdaten-Karte in Settings) — Ost/West ohne syncUrl sehen
+       diese Karte nicht, solange kein Cloud-Run-Konto dafür existiert. -->
+  <div class="card" id="inv-welo-card" style="display:none">
+    <div class="card-h"><span>🔄 Welo-Abgleich</span></div>
+    <div class="info">Vergleicht die App-Zählung mit den Mengen auf Welo — schreibt NICHTS automatisch. Erst nach "✓ Freigeben" für eine einzelne Filiale wird dort wirklich eingetragen ("Inventur abschließen" bleibt immer manuell).</div>
+    <div class="btn-row">
+      <button class="btn" onclick="invRunWeloDiff()" id="inv-welo-run-btn" style="flex:1;justify-content:center">🔄 Vergleich neu laufen lassen</button>
+    </div>
+    <div id="inv-welo-stat" style="font-size:12px;margin-top:8px;color:var(--mut)"></div>
+    <div id="inv-welo-list" style="margin-top:10px"></div>
+  </div>
 </div>
 
 <!-- ===== INVENTUR ABTIPP-MODUS (Vollbild-Overlay) ===== -->
@@ -6744,6 +6757,7 @@ if("serviceWorker" in navigator){
    ════════════════════════════════════════════════ */
 var invLinks={}, invStoreMap={}, invCounts={}, invTmKey=null, invTmChecked={};
 var invPeriodUnsub=null, invLinksUnsub=null, invMapUnsub=null, invCountsUnsub=null;
+var invWeloPreview={}, invWeloUnsub=null;
 
 function invDefaultMonth(){ var n=new Date(); return n.getFullYear()+'-'+('0'+(n.getMonth()+1)).slice(-2); }
 function invSlug(f){ return (''+f).replace(/\s+/g,'_').toLowerCase(); }
@@ -6990,9 +7004,77 @@ function invBindMonth(){
     invCounts={}; snap.forEach(function(doc){ invCounts[doc.id]=doc.data(); });
     invRenderSubmissions();
   }, function(e){ console.warn('inv counts',e); });
+  if(invWeloUnsub){try{invWeloUnsub();}catch(e){}}
+  var credsCard=document.getElementById('inv-welo-card');
+  if(credsCard) credsCard.style.display=REGION_SYNC_URL[activeRegion]?'block':'none';
+  if(REGION_SYNC_URL[activeRegion]){
+    invWeloUnsub=fbDb.collection('inventur_welo_preview').where('month','==',month).where('region','==',activeRegion).onSnapshot(function(snap){
+      invWeloPreview={}; snap.forEach(function(doc){ invWeloPreview[doc.id]=doc.data(); });
+      invRenderWeloPreview();
+    }, function(e){ console.warn('inv welo preview',e); });
+  }
 }
 
 function invRenderAll(){ invBindMonth(); invRenderPeriodStatus(); invRenderLinksResult(); invRenderSubmissions(); }
+
+// ── Welo-Abgleich: Vorschau anstoßen (liest nur), pro Filiale freigeben
+// (schreibt erst dann wirklich in Welo) — siehe automation/src/
+// sync-inventur-diff.js / sync-inventur-apply.js. Ruft immer den Cloud-Run-
+// Dienst der AKTIVEN Region auf (REGION_SYNC_URL, dieselbe Quelle wie die
+// Filial-Radar-Zugangsdaten-Karte in Settings).
+function invRunWeloDiff(){
+  var syncUrl=REGION_SYNC_URL[activeRegion]; if(!syncUrl) return;
+  var btn=document.getElementById('inv-welo-run-btn'), stat=document.getElementById('inv-welo-stat');
+  btn.disabled=true; stat.textContent='⏳ Vergleiche mit Welo… (kann ein paar Minuten dauern)'; stat.style.color='#6B6860';
+  firebase.auth().currentUser.getIdToken().then(function(idToken){
+    return fetch(syncUrl+'/internal/inventur-diff', { method:'POST', headers:{ Authorization:'Bearer '+idToken } });
+  }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok, d:d}; }); })
+    .then(function(res){
+      btn.disabled=false;
+      if(!res.ok){ stat.textContent='⚠️ Fehler: '+(res.d.error||'unbekannt'); stat.style.color='#C0392B'; return; }
+      stat.textContent='✓ Vergleich abgeschlossen.'; stat.style.color='#1E8449';
+    }).catch(function(e){ btn.disabled=false; stat.textContent='⚠️ Fehler: '+e.message; stat.style.color='#C0392B'; });
+}
+
+function invRenderWeloPreview(){
+  var box=document.getElementById('inv-welo-list'); if(!box) return;
+  var ids=Object.keys(invWeloPreview);
+  if(!ids.length){ box.innerHTML='<div style="font-size:13px;color:var(--mut)">Noch kein Vergleich gelaufen — oben "Vergleich neu laufen lassen" klicken.</div>'; return; }
+  box.innerHTML=ids.sort().map(function(id){
+    var p=invWeloPreview[id];
+    var badges=[];
+    if(p.changedCount) badges.push('<span class="badge badge-blu">'+p.changedCount+' geändert</span>');
+    if(p.missing&&p.missing.length) badges.push('<span class="badge badge-amb">'+p.missing.length+' fehlen</span>');
+    if(p.conflicts&&p.conflicts.length) badges.push('<span class="badge badge-red">'+p.conflicts.length+' Konflikte</span>');
+    if(p.applied) badges.push('<span class="badge badge-grn">✓ übernommen</span>');
+    var btn=p.applied
+      ? ''
+      : (p.changedCount
+          ? '<button class="btn btn-sm btn-grn" onclick="invApproveWelo(\''+id+'\')">✓ Freigeben</button>'
+          : '<span style="font-size:12px;color:var(--mut)">keine Änderung</span>');
+    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--brd);font-size:13px;flex-wrap:wrap">'
+      +'<span style="flex:1;min-width:140px">'+uglXmlEscape(p.filiale||'')+'</span>'
+      +badges.join(' ')
+      +'<a href="'+p.weloUrl+'" target="_blank" style="font-size:12px">🔗</a>'
+      +btn+'</div>';
+  }).join('');
+}
+
+function invApproveWelo(previewId){
+  var syncUrl=REGION_SYNC_URL[activeRegion]; if(!syncUrl) return;
+  var p=invWeloPreview[previewId];
+  if(!confirm('In Welo für "'+(p?p.filiale:previewId)+'" wirklich '+(p?p.changedCount:'?')+' Felder eintragen?\n\n"Inventur abschließen" musst du danach selbst in Welo bestätigen.')) return;
+  firebase.auth().currentUser.getIdToken().then(function(idToken){
+    return fetch(syncUrl+'/internal/inventur-apply', {
+      method:'POST', headers:{'Content-Type':'application/json', Authorization:'Bearer '+idToken},
+      body: JSON.stringify({ previewId: previewId })
+    });
+  }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok, d:d}; }); })
+    .then(function(res){
+      if(!res.ok){ alert('Fehler: '+(res.d.error||'unbekannt')); return; }
+      toast('✓ In Welo eingetragen — bitte dort prüfen und "Inventur abschließen" bestätigen.');
+    }).catch(function(e){ alert('Fehler: '+e.message); });
+}
 
 function invSavePeriod(){
   if(!fbReady||!fbDb||!fbManager||!activeRegion){ alert('Bitte zuerst als Manager anmelden (☁️ Cloud).'); return; }

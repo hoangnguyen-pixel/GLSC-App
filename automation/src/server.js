@@ -14,7 +14,7 @@
 require('dotenv').config();
 const express = require('express');
 const { getDb, admin } = require('./firestore-client');
-const { runOne, runAll } = require('./sync-runner');
+const { runOne, runAll, runFile } = require('./sync-runner');
 const { setSecret } = require('./secrets-client');
 
 // getDb() ruft intern admin.initializeApp() auf — muss VOR dem ersten
@@ -91,8 +91,32 @@ async function requireManager(req, res, next) {
 // UND vom Cloud-Scheduler-Cron (/internal/sync-all, geteiltes Secret).
 async function runAllAndTrackStatus(requestedBy, res) {
   const db = getDb();
+  const triggerRef = db.collection('sync_triggers').doc(TRIGGER_ID);
+
+  // Schutz gegen mehrfaches Klicken/gleichzeitige Anfragen (Dashboard-Button
+  // + Scheduler, oder der Button mehrfach hintereinander geklickt): ein
+  // bereits laufender Sync würde sonst ein zweites Mal parallel im selben
+  // Container starten — das hat am 07.09.2026 den Speicher gesprengt
+  // (Container-Kill mitten im Lauf) UND ist derselbe Risiko-Typ wie der
+  // Ost/West-Vorfall (zwei gleichzeitige Welo/Axonity-Logins auf demselben
+  // Konto können sich gegenseitig aus der Sitzung werfen). 25 Min. Schwelle,
+  // weit über der realistischen Laufzeit (jedes Skript hat 5 Min. Timeout,
+  // 4 Skripte nacheinander), damit ein wirklich abgestürzter alter Lauf
+  // (Container-Kill, ohne dass 'done'/'error' je geschrieben wurde) nicht für
+  // immer blockiert.
+  const existing = await triggerRef.get();
+  if (existing.exists) {
+    const d = existing.data();
+    const startedMs = d.startedAt && d.startedAt.toMillis ? d.startedAt.toMillis() : 0;
+    const laeuftNoch = d.status === 'running' && (Date.now() - startedMs) < 25 * 60 * 1000;
+    if (laeuftNoch) {
+      res.status(409).json({ error: 'Ein Sync läuft bereits — bitte warten, bis er fertig ist (max. ~20 Min.), statt erneut zu klicken.' });
+      return;
+    }
+  }
+
   const now = admin.firestore.FieldValue.serverTimestamp();
-  await db.collection('sync_triggers').doc(TRIGGER_ID).set(
+  await triggerRef.set(
     { status: 'running', startedAt: now, requestedBy, region: REGION },
     { merge: true }
   );
@@ -163,6 +187,36 @@ app.post('/credentials', requireManager, async (req, res) => {
     res.status(200).json({ status: 'ok' });
   } catch (err) {
     console.error('[credentials] Fehlgeschlagen:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Inventur: Vorschau abrufen (nur lesen, schreibt nie auf Welo) ─────────
+// Manuell aus index.html angestoßen ("🔄 Chạy so sánh mới"), NICHT Teil von
+// runAll()/dem täglichen Zeitplan — Inventur ist nur ein paar Tage im Monat
+// relevant, jeden Tag mitlaufen zu lassen wäre unnötige Login-Versuche.
+app.post('/internal/inventur-diff', requireManager, async (req, res) => {
+  try {
+    const result = await runFile('sync-inventur-diff.js', 'Inventur-Vorschau', [], 15 * 60 * 1000);
+    res.status(result.ok ? 200 : 500).json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Inventur: EINE Filiale/Monat wirklich in Welo eintragen ───────────────
+// Nur nachdem ein Manager die Vorschau für GENAU DIESE previewId geprüft und
+// freigegeben hat (kein "alle freigeben" — bewusst pro Filiale einzeln).
+app.post('/internal/inventur-apply', requireManager, async (req, res) => {
+  if (!REGION || !req.managerRegions.includes(REGION)) {
+    return res.status(403).json({ error: 'not authorized for this region' });
+  }
+  const previewId = req.body && req.body.previewId;
+  if (!previewId) return res.status(400).json({ error: 'previewId fehlt' });
+  try {
+    const result = await runFile('sync-inventur-apply.js', `Inventur anwenden (${previewId})`, [previewId], 5 * 60 * 1000);
+    res.status(result.ok ? 200 : 500).json(result);
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
