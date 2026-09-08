@@ -1545,16 +1545,30 @@ function maRenderZielInfo(sess){
       var zdoc=results[0], pdoc=results[1];
       if(!zdoc.exists){ el.innerHTML=''; return; }
       var z=zdoc.data();
-      if(z.ziel==null){ el.textContent=t('welo_ziel_unknown'); return; }
+      if(z.ziel==null && z.produktionsziel==null){ el.textContent=t('welo_ziel_unknown'); return; }
       var umsatzHeuteLive=(pdoc.exists && typeof pdoc.data().umsatzHeute==='number') ? pdoc.data().umsatzHeute : null;
-      var html='<div>'+t('welo_ziel',{filiale:z.marktname||d.marktname||'', ziel:weloFmtNum(z.ziel,2)+' €', vorjahr:weloFmtNum(z.umsatzVorjahr,2)+' €'})+'</div>';
-      if(umsatzHeuteLive!=null){
-        var pct=Math.round(umsatzHeuteLive/z.ziel*100);
+      var filiale=z.marktname||d.marktname||'';
+      // Das eigentliche Tagesziel ist die Produktion (inkl. Waste) — nicht der
+      // Vorjahres-Umsatz. Produktionsziel bevorzugt anzeigen und für die
+      // Prozentanzeige/den Balken zugrunde legen (Auftrag t.duong 08.09.2026);
+      // der alte umsatzbasierte Wert bleibt nur Fallback, falls für eine
+      // Filiale (noch) kein Produktionsziel vorliegt.
+      var zielBasis = z.produktionsziel!=null ? z.produktionsziel : z.ziel;
+      var html='';
+      if(z.produktionsziel!=null){
+        html+='<div style="font-size:22px;font-weight:800;color:var(--txt);line-height:1.3">'+t('welo_produktion_ziel',{n:weloFmtNum(z.produktionsziel,2)+' €'})+'</div>';
+      } else {
+        html+='<div>'+t('welo_ziel',{filiale:filiale, ziel:weloFmtNum(z.ziel,2)+' €', vorjahr:weloFmtNum(z.umsatzVorjahr,2)+' €'})+'</div>';
+      }
+      if(umsatzHeuteLive!=null && zielBasis){
+        var pct=Math.round(umsatzHeuteLive/zielBasis*100);
         var barColor=pct>=100?'var(--grn)':'var(--amb)';
         html+='<div style="margin-top:6px;font-size:12px;font-weight:600;color:'+barColor+'">'+t('welo_heute',{n:weloFmtNum(umsatzHeuteLive,2)+' €',pct:pct})+'</div>'
           +'<div style="height:6px;border-radius:100px;background:var(--bg);overflow:hidden;margin-top:4px"><div style="height:100%;border-radius:100px;background:'+barColor+';width:'+Math.min(pct,100)+'%"></div></div>';
       }
-      if(z.produktionsziel!=null) html+='<div style="margin-top:6px">'+t('welo_produktion',{n:weloFmtNum(z.produktionsziel,2)+' €'})+'</div>';
+      if(z.produktionsziel!=null && z.ziel!=null){
+        html+='<div style="margin-top:6px;font-size:11px;color:var(--mut)">'+t('welo_vgl',{filiale:filiale, vorjahr:weloFmtNum(z.umsatzVorjahr,2)+' €', ziel:weloFmtNum(z.ziel,2)+' €'})+'</div>';
+      }
       el.innerHTML=html;
     });
   }).catch(function(e){ console.warn('maRenderZielInfo', e); el.innerHTML=''; });
@@ -2023,7 +2037,8 @@ de:{_name:'Deutsch',
  welo_title:'📋 Meine Daten (Welo)', welo_soll:'Std./Woche (Soll)', welo_urlaub:'Urlaub offen / Anspruch', welo_krank:'Krank-Tage (Jahr)',
  welo_ziel:'🎯 Tagesziel {filiale}: {ziel} (Vorjahr: {vorjahr})',
  welo_ziel_unknown:'🎯 Für heute liegt noch kein Umsatz-Ziel vor (kein Vorjahreswert gefunden).',
- welo_produktion:'📦 Produktion (inkl. ca. 25% Waste): {n}',
+ welo_produktion_ziel:'📦 Ziel heute (Produktion, inkl. ca. 25% Waste): {n}',
+ welo_vgl:'🎯 {filiale} · Vorjahr: {vorjahr} · bisheriges Umsatzziel: {ziel}',
  welo_heute:'💰 Heute erreicht: {n} ({pct} % vom Ziel)',
  welo_stand:'Stand: {datum} (aus Welo)',
  v_ov_own:'Überschneidung mit deinem eigenen offenen Antrag ({range}), der noch auf Freigabe wartet.',
@@ -2136,7 +2151,8 @@ vi:{_name:'Tiếng Việt',
  welo_title:'📋 Dữ liệu của tôi (Welo)', welo_soll:'Giờ/Tuần (Soll)', welo_urlaub:'Urlaub còn lại / Tổng', welo_krank:'Ngày ốm (năm nay)',
  welo_ziel:'🎯 Mục tiêu hôm nay {filiale}: {ziel} (Năm trước: {vorjahr})',
  welo_ziel_unknown:'🎯 Chưa có mục tiêu doanh số hôm nay (không tìm thấy số liệu năm trước).',
- welo_produktion:'📦 Cần sản xuất (đã gồm ~25% hao hụt): {n}',
+ welo_produktion_ziel:'📦 Mục tiêu hôm nay (Sản xuất, đã gồm ~25% hao hụt): {n}',
+ welo_vgl:'🎯 {filiale} · Năm trước: {vorjahr} · mục tiêu doanh số cũ: {ziel}',
  welo_heute:'💰 Hôm nay đạt: {n} ({pct}% mục tiêu)',
  welo_stand:'Cập nhật: {datum} (từ Welo)',
  v_ov_own:'Trùng với đơn của chính bạn ({range}) đang chờ duyệt.',
@@ -2249,7 +2265,8 @@ en:{_name:'English',
  welo_title:'📋 My Data (Welo)', welo_soll:'Hrs/Week (Contract)', welo_urlaub:'Vacation left / Total', welo_krank:'Sick days (year)',
  welo_ziel:"🎯 Today's target {filiale}: {ziel} (Last year: {vorjahr})",
  welo_ziel_unknown:'🎯 No revenue target available for today yet (no figure found for last year).',
- welo_produktion:'📦 Production needed (incl. ~25% waste): {n}',
+ welo_produktion_ziel:'📦 Target today (Production, incl. ~25% waste): {n}',
+ welo_vgl:'🎯 {filiale} · Last year: {vorjahr} · previous revenue target: {ziel}',
  welo_heute:'💰 Today so far: {n} ({pct}% of target)',
  welo_stand:'As of: {datum} (from Welo)',
  v_ov_own:'Overlaps with your own open request ({range}), still waiting for approval.',
@@ -2362,7 +2379,8 @@ th:{_name:'ไทย',
  welo_title:'📋 ข้อมูลของฉัน (Welo)', welo_soll:'ชม./สัปดาห์ (ตามสัญญา)', welo_urlaub:'วันลาคงเหลือ / ทั้งหมด', welo_krank:'วันลาป่วย (ปีนี้)',
  welo_ziel:'🎯 เป้าหมายวันนี้ {filiale}: {ziel} (ปีที่แล้ว: {vorjahr})',
  welo_ziel_unknown:'🎯 ยังไม่มีเป้าหมายยอดขายวันนี้ (ไม่พบข้อมูลปีที่แล้ว)',
- welo_produktion:'📦 ต้องผลิต (รวมของเสีย ~25%): {n}',
+ welo_produktion_ziel:'📦 เป้าหมายวันนี้ (การผลิต รวมของเสีย ~25%): {n}',
+ welo_vgl:'🎯 {filiale} · ปีที่แล้ว: {vorjahr} · เป้าหมายยอดขายเดิม: {ziel}',
  welo_heute:'💰 วันนี้ทำได้: {n} ({pct}% ของเป้าหมาย)',
  welo_stand:'ข้อมูล ณ: {datum} (จาก Welo)',
  v_ov_own:'ซ้ำกับคำขอของคุณเองที่ยังรออนุมัติ ({range})',
@@ -2475,7 +2493,8 @@ zh:{_name:'中文',
  welo_title:'📋 我的数据 (Welo)', welo_soll:'合同工时/周', welo_urlaub:'剩余/总休假天数', welo_krank:'病假天数（今年）',
  welo_ziel:'🎯 今日目标 {filiale}：{ziel}（去年：{vorjahr}）',
  welo_ziel_unknown:'🎯 今天还没有营业额目标（未找到去年同期数据）。',
- welo_produktion:'📦 需生产量（含约25%损耗）：{n}',
+ welo_produktion_ziel:'📦 今日目标（生产量，含约25%损耗）：{n}',
+ welo_vgl:'🎯 {filiale} · 去年：{vorjahr} · 原营业额目标：{ziel}',
  welo_heute:'💰 今日已达：{n}（{pct}% 目标）',
  welo_stand:'更新时间：{datum}（来自 Welo）',
  v_ov_own:'与您自己尚未审批的申请（{range}）时间重叠。',
