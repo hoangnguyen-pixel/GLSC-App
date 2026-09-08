@@ -1025,6 +1025,7 @@ window.onerror=function(msg,src,line){
     <div class="btn-row">
       <button class="btn" onclick="fbManagerLogout()" style="flex:1;justify-content:center">Abmelden</button>
     </div>
+    <div style="margin-top:10px"><a href="datenschutz-app.html" target="_blank" rel="noopener" style="font-size:12px;color:var(--mut)">🔒 Datenschutzerklärung (App)</a></div>
     <label>Deine WhatsApp-Nummer (für Rückmeldungen der Mitarbeiter)</label>
     <input type="text" id="st-manager-wa" placeholder="z.B. +49 173 1234567" oninput="localStorage.setItem('sc_manager_wa',this.value)">
     <div class="btn-row">
@@ -2062,7 +2063,7 @@ function saveEmp() {
   saveEmps(emps);
   // Sofort in Firestore synchronisieren (Rollen müssen live verfügbar sein)
   if(fbReady&&fbDb&&id){
-    fbDb.collection('emps').doc(''+id).set({name,filiale:fil,filialeNr:filnr,zweit,shopleiter:shopleiter,vize:vize,active:true,region:region},{merge:true})
+    fbDb.collection('emps').doc(''+id).set({name,filiale:fil,filialeNr:filnr,zweit,shopleiter:shopleiter,vize:vize,active:true,region:region,inactiveSince:firebase.firestore.FieldValue.delete()},{merge:true})
       .catch(function(e){ console.warn('Rollen-Sync', e); });
   }
   closeModal();
@@ -2080,7 +2081,10 @@ function delEmp(i) {
   // Sofort in Firestore synchronisieren, sonst bleibt der alte active:true-Status stehen
   // und die Person kann sich weiterhin anmelden (erst beim nächsten "Veröffentlichen" sonst).
   if(fbReady&&fbDb&&e.id){
-    fbDb.collection('emps').doc(''+e.id).set({active:false},{merge:true})
+    // inactiveSince: Grundlage für die automatische Löschung der Bewerbungs-/
+    // Meldedaten nach Austritt (siehe automation/src/cleanup-departed-employees.js) —
+    // ohne dieses Feld wüsste der Cleanup-Job nicht, seit wann jemand inaktiv ist.
+    fbDb.collection('emps').doc(''+e.id).set({active:false,inactiveSince:firebase.firestore.FieldValue.serverTimestamp()},{merge:true})
       .catch(function(err){ console.warn('delEmp sync', err); });
   }
   renderEmpTable(); populateDropdowns(); toast('✓ Als inaktiv markiert');

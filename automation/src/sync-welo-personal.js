@@ -605,6 +605,10 @@ async function syncAll() {
       const payload = {
         name: reformatWeloName(p.name), filiale: p.marktname, filialeNr: p.marktNr,
         active: true, updatedAt: now,
+        // Markierung von einer früheren Deaktivierung entfernen (Wiedereinstellung) —
+        // no-op falls nie gesetzt. Siehe cleanup-departed-employees.js: inactiveSince
+        // ist die Grundlage für die automatische Datenlöschung nach Austritt.
+        inactiveSince: admin.firestore.FieldValue.delete(),
       };
       if (region) payload.region = region; // nie ein leeres/falsches region-Feld schreiben
       empsBatch.set(db.collection(EMPS_COLLECTION).doc(id), payload, { merge: true });
@@ -634,7 +638,7 @@ async function syncAll() {
     let deaktiviert = 0;
     for (const id of bestehendAktiv) {
       if (!personal[id] && regionenDiesesLaufs.has(bestehendeRegion[id])) {
-        empsBatch.set(db.collection(EMPS_COLLECTION).doc(id), { active: false, updatedAt: now }, { merge: true });
+        empsBatch.set(db.collection(EMPS_COLLECTION).doc(id), { active: false, updatedAt: now, inactiveSince: now }, { merge: true });
         deaktiviert++;
       }
     }

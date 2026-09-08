@@ -17,6 +17,7 @@ const { getDb, admin } = require('./firestore-client');
 const { runOne, runAll, runFile } = require('./sync-runner');
 const { setSecret } = require('./secrets-client');
 const { cleanupKrankmeldungFotos } = require('./cleanup-krankmeldung');
+const { cleanupDepartedEmployees } = require('./cleanup-departed-employees');
 const { employeeLogin } = require('./employee-auth');
 
 // getDb() ruft intern admin.initializeApp() auf — muss VOR dem ersten
@@ -257,6 +258,22 @@ app.post('/employee/login', async (req, res) => {
     const status = err.status || 500;
     if (status === 500) console.error('[employee-login] Fehlgeschlagen:', err.message);
     res.status(status).json({ error: err.message, attemptsLeft: err.attemptsLeft });
+  }
+});
+
+// ── Datenschutz: App-eigene Meldedaten ausgeschiedener Mitarbeiter löschen ──
+// Region-unabhängig, gleicher Shared-Secret-Mechanismus wie die anderen
+// Scheduler-Routen (siehe cleanup-departed-employees.js für die Begründung).
+app.post('/internal/cleanup-departed-employees', async (req, res) => {
+  if (!SYNC_SHARED_SECRET || req.get('X-Sync-Secret') !== SYNC_SHARED_SECRET) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  try {
+    const result = await cleanupDepartedEmployees();
+    res.status(200).json({ status: 'ok', ...result });
+  } catch (err) {
+    console.error('[cleanup-departed-employees] Fehlgeschlagen:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
