@@ -987,6 +987,11 @@ window.onerror=function(msg,src,line){
       <button class="btn btn-grn" onclick="nwSend()" style="flex:1;justify-content:center">📤 Senden</button>
     </div>
   </div>
+  <div class="card" id="kpi-drafts-card" style="display:none">
+    <div class="card-title">📋 KPI-Auswertung Q3 — Entwürfe je Filiale</div>
+    <div class="info">Kurznachrichten aus der Q3-Analyse (Juni–August 2026), fertig zum Prüfen/Anpassen. Jede Nachricht geht nur an die Mitarbeiter der jeweiligen Filiale — nicht an alle.</div>
+    <div id="kpi-drafts-list"></div>
+  </div>
   <div class="card">
     <div class="card-title">Gesendete Mitteilungen</div>
     <div id="nw-list" style="font-size:13px;color:var(--mut)">—</div>
@@ -4723,6 +4728,10 @@ function regionSetActive(region, onReady){
 function regionRenderSwitcher(){
   var credsCard=document.getElementById('fr-creds-card');
   if(credsCard) credsCard.style.display=(activeRegion && REGION_SYNC_URL[activeRegion]) ? 'block' : 'none';
+  // KPI-Entwürfe Q3 sind aktuell nur für Ost/West erstellt (siehe KPI_DRAFTS) —
+  // in anderen Regionen (z.B. Hoàng) passen weder Filialnamen noch Zahlen.
+  var kpiCard=document.getElementById('kpi-drafts-card');
+  if(kpiCard){ kpiCard.style.display=(activeRegion==='ost'||activeRegion==='west')?'block':'none'; if(kpiCard.style.display==='block' && typeof kpiDraftsRender==='function') kpiDraftsRender(); }
   var wrap=document.getElementById('region-switcher-wrap');
   var label=document.getElementById('region-switcher-label');
   if(!wrap||!label) return;
@@ -6657,6 +6666,130 @@ function nwSend(){
   var filiale=filSel?filSel.value.trim():'';
   fbDb.collection('news').add({text:txt, img:(nwImgData||null), filiale:(filiale||null), region:activeRegion||null, created:new Date().toISOString()})
     .then(function(){ toast(filiale?('📤 An '+filiale+' gesendet'):'📤 An alle gesendet'); document.getElementById('nw-text').value=''; nwClearImg(); if(filSel) filSel.value=''; })
+    .catch(function(e){ alert('Senden fehlgeschlagen: '+e.message); });
+}
+// ── KPI-Auswertung Q3 (Jun-Aug 2026) — Entwürfe je Filiale ─────────────────
+// filiale MUSS exakt dem echten emps.filiale-Wert entsprechen (inkl.
+// "NNNNNN: "-Präfix), sonst filtert mitarbeiter.html die Nachricht für
+// niemanden sichtbar heraus — am 09.09.2026 direkt gegen die echten
+// emps-Werte abgeglichen (das KPI-PDF selbst verwendet gekürzte Namen ohne
+// Präfix, teils sogar mit leicht anderer Schreibweise, z.B. "Friederichs"
+// im PDF vs. "Friedrich" in emps.filiale — hier gilt der echte emps-Wert).
+var KPI_DRAFTS = [
+{nr:'402207', filiale:'402207: E-Bovenden-Industriestraße',
+ de:'Hallo zusammen, im Juli gab es einen sehr hohen Kostenausschlag (14.668 € Verlust in einem Monat) — wahrscheinlich eine einzelne Buchung. Könnt ihr kurz nachschauen, was das war? Danke euch!',
+ vi:'Chào cả nhóm, tháng 7 có một khoản chi phí bất thường rất lớn (lỗ 14.668€ chỉ trong 1 tháng) — có thể là 1 khoản ghi sổ đơn lẻ. Mọi người kiểm tra giúp xem đó là khoản gì nhé? Cảm ơn cả nhà!'},
+{nr:'402501', filiale:'402501: T-Göttingen-Weender Str.',
+ de:'Hallo zusammen, ihr seid noch der schwächste Standort im Gebiet, aber es geht klar bergauf (viel besser als im Juni). Lasst uns bald telefonieren, wie wir weiter verbessern. Danke für euren Einsatz!',
+ vi:'Chào cả nhóm, tiệm mình vẫn đang yếu nhất vùng, nhưng đang cải thiện rõ rệt (tốt hơn nhiều so với tháng 6). Mình sẽ gọi điện trao đổi thêm cách cải thiện tiếp. Cảm ơn mọi người đã cố gắng!'},
+{nr:'402205', filiale:'402205: R-Hattingen-Heggerstraße',
+ de:'Hallo zusammen, der Wareneinsatz und die Personalkosten sind seit Monaten zu hoch, im August macht das ein Minus von rund 4.900 €. Ich rufe diese Woche an, damit wir gemeinsam schauen, wie wir das senken.',
+ vi:'Chào cả nhóm, tiền hàng và chi phí nhân sự bên mình cao hơn bình thường nhiều tháng liền, tháng 8 lỗ khoảng 4.900€. Tuần này mình gọi điện để cùng tìm cách giảm xuống nhé.'},
+{nr:'402512', filiale:'402512: R-Remscheid-Wupperstraße',
+ de:'Hallo zusammen, der Verlust wird von Monat zu Monat größer, im August waren es fast 4.500 €. Lasst uns diese Woche telefonieren, bevor sich das weiter verschlimmert.',
+ vi:'Chào cả nhóm, mức lỗ đang tăng dần theo từng tháng, tháng 8 lỗ gần 4.500€. Tuần này mình gọi điện trao đổi trước khi tình hình nặng thêm nhé.'},
+{nr:'402133', filiale:'402133: K-Köln-Thebäerstraße',
+ de:'Hallo zusammen, der Standort läuft seit Monaten im Minus und es wird eher schlimmer (August: −4.146 €). Lasst uns bald zusammensetzen und einen Plan machen.',
+ vi:'Chào cả nhóm, tiệm mình lỗ nhiều tháng liền và đang nặng thêm (tháng 8 lỗ 4.146€). Mình cần ngồi lại sớm để lên kế hoạch cụ thể.'},
+{nr:'402507', filiale:'402507: K-Wesel-Rudolf-Diesel-Straße',
+ de:'Hallo zusammen, der Standort ist seit Juni durchgehend im Minus (August: −3.185 €), deutlich schlechter als im Vorjahr. Lasst uns schauen, was sich verändert hat.',
+ vi:'Chào cả nhóm, tiệm mình lỗ liên tục từ tháng 6 (tháng 8 lỗ 3.185€), kém hơn hẳn năm ngoái. Mình cùng xem có gì thay đổi so với trước nhé.'},
+{nr:'401891', filiale:'401891: E-Kassel-Frankfurter Str. - Aschoff',
+ de:'Hallo zusammen, die Personalkosten waren im Juli sehr hoch, im August schon deutlich besser — weiter so! Noch nicht ganz im Plus, aber die Richtung stimmt.',
+ vi:'Chào cả nhóm, chi phí nhân sự tháng 7 rất cao, tháng 8 đã giảm rõ rệt — tiếp tục phát huy nhé! Chưa có lãi nhưng đang đi đúng hướng.'},
+{nr:'402523', filiale:'402523: K-Essen-Haedenkampstraße',
+ de:'Hallo zusammen, als neuer Standort ist ein Verlust am Anfang normal, kein Problem. Was auffällt: die Personalkosten steigen weiter (jetzt 63 % vom Umsatz) — schaut da bitte nochmal drüber.',
+ vi:'Chào cả nhóm, tiệm mới nên có lỗ ban đầu là bình thường, không sao cả. Điều cần chú ý là chi phí nhân sự đang tăng tiếp (giờ chiếm 63% doanh thu) — mọi người xem lại giúp mình nhé.'},
+{nr:'402251', filiale:'402251: R-Düsseldorf-Zeppelinstraße',
+ de:'Hallo zusammen, im August ist der Wareneinsatz plötzlich stark gestiegen — bitte prüft, ob da ein Fehler in der Buchung oder bei der Inventur ist.',
+ vi:'Chào cả nhóm, tháng 8 tiền hàng tăng đột ngột — mọi người kiểm tra giúp xem có sai sót gì trong ghi sổ hay kiểm kê không nhé.'},
+{nr:'402363', filiale:'402363: R-Bergneustadt-Stadionstr.',
+ de:'Hallo zusammen, die Personalkosten steigen bei euch spürbar, das drückt das Ergebnis ins Minus. Schaut bitte, ob an der Personalplanung etwas angepasst werden kann.',
+ vi:'Chào cả nhóm, chi phí nhân sự bên mình đang tăng rõ, khiến kết quả bị lỗ. Mọi người xem lại cách sắp xếp nhân sự có điều chỉnh được không nhé.'},
+{nr:'402272', filiale:'402272: R-Düsseldorf-Münsterstraße',
+ de:'Hallo zusammen, es geht bergauf — von deutlichem Minus im Juni auf fast ausgeglichen im August. Weiter so!',
+ vi:'Chào cả nhóm, tình hình đang tốt lên — từ lỗ nặng tháng 6 đến gần hòa vốn tháng 8. Tiếp tục phát huy nhé!'},
+{nr:'402310', filiale:'402310: R-Wuppertal-Ascheweg - Brücken Kaufpark',
+ de:'Hallo zusammen, ein kleines, aber wiederkehrendes Minus die letzten Monate. Nichts Dramatisches, aber lasst uns schauen, wie wir das ins Plus drehen.',
+ vi:'Chào cả nhóm, mấy tháng qua lỗ nhẹ nhưng đều đặn. Không nghiêm trọng, nhưng mình cùng tìm cách chuyển sang có lãi nhé.'},
+{nr:'402257', filiale:'402257: E-Northeim-Robert-Schnabel-Str. - Schnabel',
+ de:'Hallo zusammen, starker August! Nach einem schwachen Juli seid ihr klar ins Plus gedreht. Behaltet den Wareneinsatz noch im Blick, dann bleibt es so gut.',
+ vi:'Chào cả nhóm, tháng 8 rất tốt! Sau tháng 7 yếu, tiệm mình đã chuyển sang có lãi rõ rệt. Giữ tiền hàng ổn định thì sẽ duy trì được kết quả này.'},
+{nr:'401888', filiale:'401888: R-Homberg (Efze)-Kasseler Str. - Mohr',
+ de:'Hallo zusammen, der Umsatz wächst schön, nur die Personalkosten ziehen das Ergebnis noch leicht ins Minus. Kleine Anpassung, dann seid ihr im Plus.',
+ vi:'Chào cả nhóm, doanh thu bên mình tăng tốt, chỉ có chi phí nhân sự khiến kết quả hơi lỗ nhẹ. Điều chỉnh thêm chút nữa là sẽ có lãi.'},
+{nr:'402286', filiale:'402286: K-Göttingen-Am Kauf Park',
+ de:'Hallo zusammen, das ist die stärkste Verbesserung im ganzen Gebiet — von großem Minus im Juni zu deutlichem Plus im August! Richtig starke Leistung, weiter so!',
+ vi:'Chào cả nhóm, đây là sự cải thiện tốt nhất toàn vùng — từ lỗ nặng tháng 6 chuyển sang có lãi rõ rệt tháng 8! Làm rất tốt, tiếp tục phát huy nhé!'},
+{nr:'402185', filiale:'402185: K-Hagen-Auf dem Lölfert',
+ de:'Hallo zusammen, der Standort hat sich stabilisiert und liegt jetzt ungefähr bei Null. Guter Stand — lasst uns daraus ein kleines Plus machen.',
+ vi:'Chào cả nhóm, tiệm mình đã ổn định và gần như hòa vốn. Đây là mức tốt — mình cùng cố thêm để có lãi nhẹ nhé.'},
+{nr:'402422', filiale:'402422: E-Leverkusen-Pommernstraße',
+ de:'Hallo zusammen, der Umsatz ist zuletzt spürbar gesunken, das ist gerade das größere Thema bei euch. Lasst uns dazu sprechen.',
+ vi:'Chào cả nhóm, doanh thu bên mình gần đây giảm khá rõ, đây mới là vấn đề chính cần quan tâm. Mình trao đổi thêm về việc này nhé.'},
+{nr:'402261', filiale:'402261: R-Hilden-Mittelstraße',
+ de:'Hallo zusammen, nur ein kleines Minus, insgesamt stabil die letzten Monate. Nichts Dringendes.',
+ vi:'Chào cả nhóm, chỉ lỗ nhẹ thôi, nhìn chung khá ổn định mấy tháng qua. Không có gì gấp cả.'},
+{nr:'402302', filiale:'402302: R-Neuss-Allerheiligen-Am alten Bach - Friedrich',
+ de:'Hallo zusammen, der Umsatz ist etwas gesunken, das Ergebnis liegt knapp im Minus. Lasst uns überlegen, woran der Rückgang liegen könnte.',
+ vi:'Chào cả nhóm, doanh thu bên mình giảm nhẹ, kết quả hơi lỗ chút. Mình cùng nghĩ xem lý do doanh thu giảm là gì nhé.'},
+{nr:'402416', filiale:'402416: R-Bergisch Gladbach-Odenthaler Str. - Gärtner',
+ de:'Hallo zusammen, trotz etwas weniger Umsatz bleibt der Standort profitabel — sehr sauber gewirtschaftet. Weiter so!',
+ vi:'Chào cả nhóm, dù doanh thu giảm nhẹ nhưng tiệm mình vẫn có lãi — quản lý rất tốt. Tiếp tục phát huy nhé!'},
+{nr:'402414', filiale:'402414: E-Bergheim-Dansweilerstraße - Fischenich',
+ de:'Hallo zusammen, sehr schöne Entwicklung: von Minus im Juni zu klarem Plus im August, bei wachsendem Umsatz. Weiter so!',
+ vi:'Chào cả nhóm, tiến triển rất tốt: từ lỗ tháng 6 chuyển sang có lãi rõ rệt tháng 8, doanh thu vẫn tăng. Tiếp tục phát huy nhé!'},
+{nr:'402167', filiale:'402167: R-Düsseldorf-Hauptstr.',
+ de:'Hallo zusammen, Juni und Juli liefen gut, im August ein kleiner Ausrutscher. Insgesamt ein solides Quartal, schaut kurz, was im August anders war.',
+ vi:'Chào cả nhóm, tháng 6 và 7 làm tốt, tháng 8 hơi chững lại chút. Nhìn chung cả quý khá ổn, mọi người xem tháng 8 có gì khác không nhé.'},
+{nr:'402297', filiale:'402297: MK-Einbeck-Altendorfer Tor',
+ de:'Hallo zusammen, Juni und Juli waren stark, im August sind die Personalkosten plötzlich hochgeschossen. Bitte schaut, was da passiert ist.',
+ vi:'Chào cả nhóm, tháng 6 và 7 rất tốt, nhưng tháng 8 chi phí nhân sự tăng vọt bất ngờ. Mọi người kiểm tra xem chuyện gì đã xảy ra nhé.'},
+{nr:'402502', filiale:'402502: T-Göttingen-An-der-Lutter',
+ de:'Hallo zusammen, schöne Erholung von Minus zu Plus. Weiter so!',
+ vi:'Chào cả nhóm, phục hồi tốt từ lỗ sang có lãi. Tiếp tục phát huy nhé!'},
+{nr:'402315', filiale:'402315: R-Bochum-Viktoriastraße - Mert',
+ de:'Hallo zusammen, drei Monate in Folge im Plus — konstant und solide. Gute Arbeit!',
+ vi:'Chào cả nhóm, 3 tháng liền đều có lãi — ổn định và chắc chắn. Làm tốt lắm!'},
+{nr:'401125', filiale:'401125: RA-Baunatal-Fuldastraße',
+ de:'Hallo zusammen, euer Standort läuft rund und hat das beste Ergebnis im ganzen Gebiet. Danke für die durchgehend gute Arbeit!',
+ vi:'Chào cả nhóm, tiệm mình vận hành rất tốt và có kết quả cao nhất toàn vùng. Cảm ơn mọi người đã làm việc tốt liên tục!'},
+{nr:'402240', filiale:'402240: R-Heilbad Heiligenstadt-Sperberwiese - Ihme',
+ de:'Hallo zusammen, starke Wende von Minus im Juni zu deutlichem Plus im August. Sehr gute Arbeit!',
+ vi:'Chào cả nhóm, chuyển biến rất mạnh từ lỗ tháng 6 sang có lãi rõ rệt tháng 8. Làm rất tốt!'},
+{nr:'402155', filiale:'402155: M-Nordhausen-Darrweg',
+ de:'Hallo zusammen, das beste Ergebnis im ganzen Gebiet — über 41 % vom Umsatz! Danke für die tolle Arbeit, weiter so!',
+ vi:'Chào cả nhóm, kết quả tốt nhất toàn vùng — hơn 41% doanh thu! Cảm ơn cả nhóm đã làm rất tốt, tiếp tục phát huy nhé!'}
+];
+function kpiDraftsSentMap(){ try{ return JSON.parse(localStorage.getItem('sc_kpi_drafts_sent')||'{}'); }catch(e){ return {}; } }
+function kpiDraftsRender(){
+  var box=document.getElementById('kpi-drafts-list'); if(!box) return;
+  var sent=kpiDraftsSentMap();
+  box.innerHTML=KPI_DRAFTS.map(function(d,i){
+    var isSent=!!sent[d.nr];
+    var combined=d.de+'\n\n---\n\n'+d.vi;
+    return '<div class="card" style="margin-top:10px;background:var(--bg)">'
+      +'<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px">'
+      +'<b style="font-size:13px">'+d.filiale+'</b>'
+      +(isSent?'<span class="badge badge-grn">✓ Gesendet</span>':'')
+      +'</div>'
+      +'<textarea id="kpi-draft-'+i+'" style="min-height:110px;font-size:13px">'+combined.replace(/</g,'&lt;')+'</textarea>'
+      +'<div class="btn-row" style="margin-top:6px">'
+      +'<button class="btn btn-grn" style="flex:1;justify-content:center" onclick="kpiDraftSend('+i+')">📤 '+(isSent?'Erneut senden':'Senden')+'</button>'
+      +'</div></div>';
+  }).join('');
+}
+function kpiDraftSend(i){
+  if(!fbReady||!fbDb||!fbManager){ alert('Bitte zuerst als Manager anmelden (Einstellungen).'); return; }
+  var d=KPI_DRAFTS[i]; if(!d) return;
+  var ta=document.getElementById('kpi-draft-'+i); var txt=ta?ta.value.trim():'';
+  if(!txt){ alert('Text ist leer.'); return; }
+  fbDb.collection('news').add({text:txt, img:null, filiale:d.filiale, region:activeRegion||null, created:new Date().toISOString()})
+    .then(function(){
+      var sent=kpiDraftsSentMap(); sent[d.nr]=true; localStorage.setItem('sc_kpi_drafts_sent', JSON.stringify(sent));
+      toast('📤 An '+d.filiale+' gesendet');
+      kpiDraftsRender();
+    })
     .catch(function(e){ alert('Senden fehlgeschlagen: '+e.message); });
 }
 function nwStartListener(){
