@@ -972,9 +972,11 @@ window.onerror=function(msg,src,line){
 <!-- ===== VERLAUF ===== -->
 <div id="panel-news" class="panel">
   <div class="card">
-    <div class="card-title">📢 Mitteilungen an alle Mitarbeiter</div>
-    <div class="info">Text (+ optional Foto) verfassen → Senden → erscheint sofort in der Mitarbeiter-App bei allen Mitarbeitern (Tab „Infos").</div>
-    <label>Nachricht</label>
+    <div class="card-title">📢 Mitteilung senden</div>
+    <div class="info">Text (+ optional Foto) verfassen → Senden. Erscheint sofort in der Mitarbeiter-App im Tab „Infos" — entweder bei allen Mitarbeitern der Region, oder nur bei denen einer bestimmten Filiale (Stamm- oder Zweitfiliale).</div>
+    <label>Empfänger</label>
+    <select id="nw-filiale"><option value="">📢 Alle Mitarbeiter der Region</option></select>
+    <label style="margin-top:10px">Nachricht</label>
     <textarea id="nw-text" style="min-height:90px" placeholder="z.B. Liebe Kollegen, ab Montag gilt…"></textarea>
     <label>Foto (optional)</label>
     <div class="drop" id="nw-drop" onclick="document.getElementById('nw-img').click()" style="padding:14px">📷 Foto auswählen</div>
@@ -5251,7 +5253,23 @@ function filialenSyncListener(){
     filMetaSave(meta);
     if(typeof filMetaRender==='function') filMetaRender();
     if(typeof stdPopulateFilialeSelect==='function') stdPopulateFilialeSelect();
+    if(typeof nwPopulateFilSelect==='function') nwPopulateFilSelect();
   }, function(err){ console.warn('FB filialen_meta sync', err); });
+}
+// Empfänger-Auswahl für Mitteilungen: eigene Filiale-Namen der aktiven Region
+// (dieselbe Quelle wie mPopulateFilSelect) — Wert ist bewusst der Filialname
+// selbst, nicht die Kostenstelle, weil emps.filiale/sess.filiale in der
+// Mitarbeiter-App genauso als Name gespeichert wird und so ein direkter
+// String-Vergleich beim Filtern reicht (siehe maStartFbNews).
+function nwPopulateFilSelect(){
+  var sel=document.getElementById('nw-filiale'); if(!sel) return;
+  var prev=sel.value;
+  var meta=filMetaLoad();
+  var names=Object.keys(meta).map(function(nr){return meta[nr].name;}).filter(Boolean);
+  names=names.filter(function(v,i){return names.indexOf(v)===i;}).sort(function(a,b){return a.localeCompare(b);});
+  sel.innerHTML='<option value="">📢 Alle Mitarbeiter der Region</option>'
+    +names.map(function(n){return '<option value="'+n.replace(/"/g,'&quot;')+'">'+n+'</option>';}).join('');
+  if(names.indexOf(prev)>=0) sel.value=prev;
 }
 
 // Firestore-Docs -> Liste (testbar)
@@ -6635,8 +6653,10 @@ function nwSend(){
   if(!fbReady||!fbDb||!fbManager){ alert('Bitte zuerst als Manager anmelden (Einstellungen).'); return; }
   var txt=document.getElementById('nw-text').value.trim();
   if(!txt && !nwImgData){ alert('Bitte Text eingeben.'); return; }
-  fbDb.collection('news').add({text:txt, img:(nwImgData||null), created:new Date().toISOString()})
-    .then(function(){ toast('📤 Mitteilung gesendet'); document.getElementById('nw-text').value=''; nwClearImg(); })
+  var filSel=document.getElementById('nw-filiale');
+  var filiale=filSel?filSel.value.trim():'';
+  fbDb.collection('news').add({text:txt, img:(nwImgData||null), filiale:(filiale||null), region:activeRegion||null, created:new Date().toISOString()})
+    .then(function(){ toast(filiale?('📤 An '+filiale+' gesendet'):'📤 An alle gesendet'); document.getElementById('nw-text').value=''; nwClearImg(); if(filSel) filSel.value=''; })
     .catch(function(e){ alert('Senden fehlgeschlagen: '+e.message); });
 }
 function nwStartListener(){
@@ -6673,7 +6693,7 @@ function nwRender(){
       readHtml='<div style="margin-top:6px;font-size:12px;color:#9a968e">Noch niemand hat als gelesen bestätigt.</div>';
     }
     return '<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid #E8E4E0;border-radius:6px;margin-bottom:6px">'
-      +'<div style="flex:1"><span style="color:#6B6860;font-size:12px">'+dt+'</span><br>'+(d.text||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')+(d.img?'<br><span style="font-size:12px">📷 mit Foto</span>':'')+readHtml+'</div>'
+      +'<div style="flex:1"><span style="color:#6B6860;font-size:12px">'+dt+(d.filiale?' · <span style="color:#1A5276">📍 '+(''+d.filiale).replace(/</g,'&lt;')+'</span>':' · <span style="color:#6B6860">📢 Alle</span>')+'</span><br>'+(d.text||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')+(d.img?'<br><span style="font-size:12px">📷 mit Foto</span>':'')+readHtml+'</div>'
       +'<button class="btn btn-sm" style="color:#C0392B;border-color:#C0392B" onclick="nwDelete(\''+n.docId+'\')">🗑</button>'
       +'</div>';
   }).join('');

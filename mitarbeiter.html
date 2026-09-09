@@ -729,9 +729,18 @@ function maStartFbUrlaub(sess){
 function maStartFbNews(){
   if(!fbReady||!fbDb) return;
   if(maNewsUnsub){ try{maNewsUnsub();}catch(e){} }
+  var sess=maSession();
   maNewsUnsub=fbDb.collection('news').onSnapshot(function(snap){
     var raw=[]; snap.forEach(function(doc){ raw.push({id:doc.id, data:doc.data()}); });
-    maNews=raw.map(function(d){ return {id:d.id, text:(d.data||{}).text||'', img:(d.data||{}).img||null, created:(d.data||{}).created||''}; })
+    maNews=raw.map(function(d){ return {id:d.id, text:(d.data||{}).text||'', img:(d.data||{}).img||null, filiale:(d.data||{}).filiale||null, created:(d.data||{}).created||''}; })
+      // Mitteilung ohne Filiale = an alle; sonst nur an die Stamm- oder
+      // Zweitfiliale des jeweiligen Mitarbeiters gerichtet (Auftrag t.duong
+      // 09.09.2026, für filialebezogene Mitteilungen wie KPI-Auswertungen).
+      .filter(function(n){
+        if(!n.filiale) return true;
+        if(!sess) return false;
+        return n.filiale===sess.filiale || (sess.zweit||[]).indexOf(n.filiale)>=0;
+      })
       .sort(function(a,b){ return a.created<b.created?1:-1; });
     maRenderNews(); maNewsDot();
   }, function(err){ console.warn('FB news', err); });
@@ -767,7 +776,8 @@ function maRenderNews(){
       ? '<div style="margin-top:11px;font-size:13.5px;color:var(--grn);font-weight:600">'+t('nw_read_done')+'</div>'
       : '<button class="btn btn-grn" style="margin-top:11px" onclick="maConfirmRead(\''+n.id+'\')">'+t('nw_read_btn')+'</button>';
     return '<div style="border:1px solid var(--brd);border-radius:var(--rs);padding:14px;margin-bottom:12px;background:var(--surf)">'
-      +'<div style="font-size:12px;color:var(--mut);font-weight:600;margin-bottom:6px">'+dt+'</div>'
+      +'<div style="font-size:12px;color:var(--mut);font-weight:600;margin-bottom:6px">'+dt
+      +(n.filiale?' · <span style="color:var(--blu)">📍 '+n.filiale.replace(/</g,'&lt;')+'</span>':'')+'</div>'
       +(n.text?'<div style="font-size:15px;line-height:1.6;white-space:pre-wrap">'+n.text.replace(/</g,'&lt;')+'</div>':'')
       +(n.img?'<img src="'+n.img+'" style="max-width:100%;border-radius:6px;margin-top:10px">':'')
       +foot
