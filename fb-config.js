@@ -4,12 +4,22 @@
 //  Diese Datei bleibt bei App-Updates unverändert!
 // ════════════════════════════════════════════════════════════
 window.FB_CONFIG = {
-  apiKey: "AIzaSyBzuk8yEBbBf6Thp0Lu76pXarw2IkHJXNw",
-  authDomain: "glsc-eabb6.firebaseapp.com",
-  projectId: "glsc-eabb6",
-  storageBucket: "glsc-eabb6.firebasestorage.app",
-  messagingSenderId: "565990660261",
-  appId: "1:565990660261:web:5607161b999f1c88a9954c",
-  measurementId: "G-ZT96K2D4TQ"
+  // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyDW2_kat-oMosN4KcHhmHu4_-tPfee1Qvg",
+  authDomain: "glsc-nguyenhoang.firebaseapp.com",
+  projectId: "glsc-nguyenhoang",
+  storageBucket: "glsc-nguyenhoang.firebasestorage.app",
+  messagingSenderId: "1010307311736",
+  appId: "1:1010307311736:web:1f100d7be0e95ac263e58d"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
 };
 window.FB_VAPID_KEY = "BH8unCm7GN5vTlM4tGCkQ51uQ5vFG8g0UCpDuM7HNAG_RMfo8yFgpxDA95N8nBzysOhR5jbDluN0Xu5BJVw3RX0";
