@@ -162,10 +162,29 @@ service cloud.firestore {
     }
     match /antrag/{a} {
       // Feld heißt hier "id", nicht "empId" (siehe maSendAntrag in mitarbeiter.html).
-      allow create: if isOwnEmp(request.resource.data.id);
+      // Zwei Wege zur Entstehung: Mitarbeiter meldet selbst (isOwnEmp, kein status-Feld)
+      // ODER Gebietsleiter legt ihn mit status:'sent_by_hr' an (uSendAntragToEmployee in
+      // index.html) — dort schreibt der Manager, nicht der Mitarbeiter (Auftrag t.duong
+      // 09.09.2026: Mitarbeiter soll auch von HR eingetragenen Urlaub gegenzeichnen können).
+      // isOwnEmp-Zweig ohne status-Feld halten (wie maSendAntrag es immer schon tut) —
+      // sonst könnte ein Mitarbeiter sich selbst einen status:'sent_by_hr'-Antrag anlegen
+      // und so vorgaukeln, der Gebietsleiter hätte ihn geschickt.
+      allow create: if (isOwnEmp(request.resource.data.id) && !('status' in request.resource.data))
+        || (isManagerForRegion(request.resource.data.region) && request.resource.data.status=='sent_by_hr');
       allow get: if isManagerForRegion(docRegion(resource.data));
-      allow list: if isManagerForRegion(resource.data.region);
-      allow update, delete: if isManagerForRegion(docRegion(resource.data));
+      // list: Manager sieht alle Anträge seiner Region; ein Mitarbeiter darf nur nach
+      // seiner eigenen id abfragen (so wie ulhrStartListener in mitarbeiter.html es tut) —
+      // Firestore prüft das anhand des .where('id','==',...)-Filters der Anfrage selbst.
+      allow list: if isManagerForRegion(resource.data.region) || isOwnEmp(resource.data.id);
+      // Der Mitarbeiter darf einen vom Gebietsleiter gesendeten Antrag gegenzeichnen —
+      // aber nur den Übergang sent_by_hr → signed, und nur die eigenen Unterschrift-Felder.
+      allow update: if isManagerForRegion(docRegion(resource.data))
+        || (isOwnEmp(resource.data.id)
+            && resource.data.status == 'sent_by_hr'
+            && request.resource.data.status == 'signed'
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['status','einsatz','ruf','anOrtDatum','anSig','signedAt']));
+      allow delete: if isManagerForRegion(docRegion(resource.data));
     }
 
     // ══════════════════════════════════════════════════════════

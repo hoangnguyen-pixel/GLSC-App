@@ -510,6 +510,7 @@ window.onerror=function(msg,src,line){
     <div class="info">Vom Mitarbeiter ausgefüllte + unterschriebene Urlaubsanträge. „Übernehmen" füllt das Formular unten automatisch (inkl. Mitarbeiter-Unterschrift) — nur noch als Arbeitgeber unterschreiben → PDF erstellen.</div>
     <div id="an-live-status" style="font-size:13px;margin-bottom:8px;font-weight:600;display:none"></div>
     <div id="an-live-list"></div>
+    <div id="an-wait-list"></div>
   </div>
 
   <!-- Mode switcher -->
@@ -585,6 +586,9 @@ window.onerror=function(msg,src,line){
 
       <div class="btn-row" style="margin-top:14px">
         <button class="btn btn-red" onclick="uGeneratePDF()" style="flex:1;justify-content:center;font-size:14px">⬇ PDF herunterladen</button>
+      </div>
+      <div class="btn-row" style="margin-top:8px">
+        <button class="btn btn-grn" onclick="uSendAntragToEmployee()" style="flex:1;justify-content:center;font-size:14px">📨 An Mitarbeiter zum Unterschreiben senden</button>
       </div>
       <p id="u-pdf-status" style="font-size:12px;color:var(--mut);margin-top:8px;text-align:center"></p>
     </div>
@@ -973,7 +977,7 @@ window.onerror=function(msg,src,line){
 <div id="panel-news" class="panel">
   <div class="card">
     <div class="card-title">📢 Mitteilung senden</div>
-    <div class="info">Text (+ optional Foto) verfassen → Senden. Erscheint sofort in der Mitarbeiter-App im Tab „Infos" — entweder bei allen Mitarbeitern der Region, oder nur bei denen einer bestimmten Filiale (Stamm- oder Zweitfiliale).</div>
+    <div class="info">Text (+ optional Foto) verfassen → Senden. Erscheint sofort in der Mitarbeiter-App im Tab „Infos" — entweder bei allen Mitarbeitern der Region, oder nur bei denen einer bestimmten Filiale (Stammfiliale — Zweitfiliale zählt hier bewusst nicht mit).</div>
     <label>Empfänger</label>
     <select id="nw-filiale"><option value="">📢 Alle Mitarbeiter der Region</option></select>
     <label style="margin-top:10px">Nachricht</label>
@@ -2587,6 +2591,42 @@ function uSigHasContent() {
   var c=document.getElementById('u-sig-canvas');
   var d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;
   for(var i=3;i<d.length;i+=4){if(d[i]>10)return true;} return false;
+}
+
+// Schickt das aktuell ausgefüllte + als Arbeitgeber unterschriebene Formular an
+// den Mitarbeiter, damit er noch als Arbeitnehmer gegenzeichnet — v.a. für
+// "Urlaub manuell eintragen" gedacht, wo der Kalendereintrag sofort gültig ist
+// und diese Unterschrift rein ergänzendes Formular bleibt, kein Freigabe-Gate
+// (Auftrag t.duong 09.09.2026).
+function uSendAntragToEmployee(){
+  if(typeof fbReady==='undefined'||!fbReady||!fbDb||!fbManager){ alert('Bitte zuerst als Manager anmelden (Einstellungen → ☁️ Cloud).'); return; }
+  var status=document.getElementById('u-pdf-status');
+  var id=document.getElementById('u-id').value.trim();
+  var von=document.getElementById('u-von').value, bis=document.getElementById('u-bis').value;
+  if(!id){ status.textContent='⚠️ Bitte Personalnummer angeben.'; return; }
+  if(!von||!bis){ status.textContent='⚠️ Bitte Urlaub von/bis angeben.'; return; }
+  if(!uSigHasContent()){ status.textContent='⚠️ Bitte zuerst als Arbeitgeber unterschreiben.'; return; }
+  var ortAG=document.getElementById('u-ort-ag').value.trim();
+  if(!ortAG){ status.textContent='⚠️ Bitte Ort/Datum (Arbeitgeber) angeben.'; return; }
+  var emp=loadEmps().find(function(e){return ''+e.id===''+id;});
+  if(!emp){ status.textContent='⚠️ Mitarbeiter mit dieser Personalnummer nicht gefunden.'; return; }
+  var doc={
+    typ:'urlaubsantrag', v:1, status:'sent_by_hr',
+    name:(document.getElementById('u-name').value.trim())||emp.name, id:''+id,
+    filiale:emp.filiale||'', region:activeRegion,
+    vorg:document.getElementById('u-vorgesetzter').value.trim(),
+    von:von, bis:bis,
+    einsatz:document.getElementById('u-einsatz').value,
+    ruf:document.getElementById('u-rufnummer').value.trim(),
+    agOrtDatum:ortAG,
+    agSig:document.getElementById('u-sig-canvas').toDataURL('image/png'),
+    created:new Date().toISOString()
+  };
+  status.textContent='⏳ Wird gesendet…';
+  fbDb.collection('antrag').add(doc).then(function(){
+    status.textContent='✓ An '+doc.name+' gesendet — wartet auf Unterschrift des Mitarbeiters.';
+    toast('✓ Zur Unterschrift gesendet');
+  }).catch(function(e){ status.textContent='Fehler: '+e.message; });
 }
 
 function uGeneratePDF() {
@@ -5491,12 +5531,19 @@ function uManualAdd(){
   umStatus('⏳ Speichere…', '#6B6860');
   fbDb.collection('filialen').doc(fbSlug(filiale)).collection('urlaub').add(doc)
     .then(function(){
-      umStatus('✓ Urlaub für '+emp.name+' eingetragen ('+fmtDate(from)+(to!==from?' – '+fmtDate(to):'')+').', '#1E8449');
+      umStatus('✓ Urlaub für '+emp.name+' eingetragen ('+fmtDate(from)+(to!==from?' – '+fmtDate(to):'')+'). Unten als Arbeitgeber unterschreiben und an den Mitarbeiter senden, damit er gegenzeichnen kann.', '#1E8449');
       toast('✓ Urlaub eingetragen');
       document.getElementById('um-from').value='';
       document.getElementById('um-to').value='';
       document.getElementById('um-note').value='';
       document.getElementById('um-emp').value='';
+      // Formular unten vorausfüllen, damit der Manager nur noch unterschreiben
+      // und "An Mitarbeiter senden" klicken muss — kein erneutes Abtippen.
+      document.getElementById('u-name').value=emp.name||'';
+      document.getElementById('u-id').value=''+emp.id;
+      document.getElementById('u-von').value=from;
+      document.getElementById('u-bis').value=to;
+      if(typeof updateUrlaub==='function') updateUrlaub();
     })
     .catch(function(e){ umStatus('Fehler: '+e.message, '#C0392B'); });
 }
@@ -5533,19 +5580,39 @@ function anRender(){
   // mehrfach angeschaut/bearbeitet wurde). Das Dokument selbst bleibt in
   // Firestore erhalten (takenAt als Zeitstempel), nur die aktive
   // Bearbeitungsliste blendet es aus.
-  var offen=fbAntrag.filter(function(a){ return !a.d.takenAt; });
+  // "sent_by_hr" = vom Gebietsleiter initiierter Antrag, der Mitarbeiter hat
+  // noch nicht gegengezeichnet — gehört noch nicht in diese "bereit zum
+  // Übernehmen"-Liste (sonst würde man versehentlich ein PDF ohne AN-Unterschrift
+  // erzeugen). Erscheint hier automatisch, sobald anSig eintrifft.
+  var offen=fbAntrag.filter(function(a){ return !a.d.takenAt && a.d.status!=='sent_by_hr'; });
+  var waiting=fbAntrag.filter(function(a){ return !a.d.takenAt && a.d.status==='sent_by_hr'; });
   if(cnt) cnt.textContent=offen.length;
-  if(!offen.length){ list.innerHTML='<div style="color:#6B6860;font-size:13px;padding:6px 0">Keine offenen Anträge.</div>'; return; }
-  list.innerHTML=offen.map(function(a){
-    var d=a.d;
-    var dt=d.created?new Date(d.created).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
-    return '<div style="display:flex;gap:10px;align-items:center;padding:10px;border:1px solid #E8E4E0;border-left:4px solid #1A5276;border-radius:6px;margin-bottom:8px;flex-wrap:wrap">'
-      +'<div style="flex:1;min-width:160px"><strong>'+(d.name||'?')+'</strong> · '+(d.filiale||'')+'<br>'
-      +'<span style="font-size:13px;color:#6B6860">'+fmtDate(d.von)+' – '+fmtDate(d.bis)+' · '+dt+'</span></div>'
-      +'<button class="btn btn-sm" style="background:#1A5276;color:#fff;border-color:#1A5276" onclick="anTake(\''+a.docId+'\')" title="Übernommen — verschwindet danach aus dieser Liste">✓ Erledigt (übernehmen)</button>'
-      +'<button class="btn btn-sm" style="color:#C0392B;border-color:#C0392B" onclick="anDelete(\''+a.docId+'\')">🗑</button>'
-      +'</div>';
-  }).join('');
+  list.innerHTML = offen.length
+    ? offen.map(function(a){
+        var d=a.d;
+        var dt=d.created?new Date(d.created).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+        return '<div style="display:flex;gap:10px;align-items:center;padding:10px;border:1px solid #E8E4E0;border-left:4px solid #1A5276;border-radius:6px;margin-bottom:8px;flex-wrap:wrap">'
+          +'<div style="flex:1;min-width:160px"><strong>'+(d.name||'?')+'</strong> · '+(d.filiale||'')+'<br>'
+          +'<span style="font-size:13px;color:#6B6860">'+fmtDate(d.von)+' – '+fmtDate(d.bis)+' · '+dt+'</span></div>'
+          +'<button class="btn btn-sm" style="background:#1A5276;color:#fff;border-color:#1A5276" onclick="anTake(\''+a.docId+'\')" title="Übernommen — verschwindet danach aus dieser Liste">✓ Erledigt (übernehmen)</button>'
+          +'<button class="btn btn-sm" style="color:#C0392B;border-color:#C0392B" onclick="anDelete(\''+a.docId+'\')">🗑</button>'
+          +'</div>';
+      }).join('')
+    : '<div style="color:#6B6860;font-size:13px;padding:6px 0">Keine offenen Anträge.</div>';
+  var wbox=document.getElementById('an-wait-list');
+  if(wbox){
+    wbox.innerHTML = waiting.length
+      ? '<div style="font-size:12px;font-weight:600;color:var(--mut);margin:12px 0 6px">📤 Warten auf Unterschrift des Mitarbeiters ('+waiting.length+')</div>'
+        + waiting.map(function(a){
+            var d=a.d;
+            return '<div style="display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px dashed #C9A227;border-radius:6px;margin-bottom:6px;flex-wrap:wrap;background:#FFFBEF">'
+              +'<div style="flex:1;min-width:160px"><strong>'+(d.name||'?')+'</strong> · '+(d.filiale||'')+'<br>'
+              +'<span style="font-size:12px;color:#6B6860">'+fmtDate(d.von)+' – '+fmtDate(d.bis)+' · gesendet, noch nicht unterschrieben</span></div>'
+              +'<button class="btn btn-sm" style="color:#C0392B;border-color:#C0392B" onclick="anDelete(\''+a.docId+'\')">🗑 Zurückziehen</button>'
+              +'</div>';
+          }).join('')
+      : '';
+  }
 }
 function anFind(id){ return fbAntrag.find(function(x){return x.docId===id;}); }
 function anTake(id){
@@ -6871,9 +6938,24 @@ function importMaAntrag(data){
       img.src=data.anSig;
     }
   }
+  // Bei einem vom Gebietsleiter initiierten Antrag (uSendAntragToEmployee) ist die
+  // Arbeitgeber-Unterschrift schon bei der Erstellung eingesammelt worden — hier
+  // wiederherstellen, damit der Manager nicht ein zweites Mal unterschreiben muss.
+  set('u-ort-ag', data.agOrtDatum);
+  if(data.agSig){
+    var c2=document.getElementById('u-sig-canvas');
+    if(c2){
+      var ctx2=c2.getContext('2d'); ctx2.clearRect(0,0,c2.width,c2.height);
+      var img2=new Image();
+      img2.onload=function(){ ctx2.drawImage(img2,0,0,c2.width,c2.height); };
+      img2.src=data.agSig;
+    }
+  }
   if(typeof updateUrlaub==='function') updateUrlaub();
   var stat=document.getElementById('u-antrag-stat');
-  if(stat) stat.textContent='✓ Antrag von '+(data.name||'?')+' ('+(data.von||'')+'–'+(data.bis||'')+') geladen. Jetzt als Arbeitgeber unterschreiben → PDF erstellen.';
+  if(stat) stat.textContent = data.agSig
+    ? '✓ Antrag von '+(data.name||'?')+' ('+(data.von||'')+'–'+(data.bis||'')+') geladen — beide Unterschriften bereits vorhanden. Direkt PDF erstellen.'
+    : '✓ Antrag von '+(data.name||'?')+' ('+(data.von||'')+'–'+(data.bis||'')+') geladen. Jetzt als Arbeitgeber unterschreiben → PDF erstellen.';
   if(typeof toast==='function') toast('✓ Mitarbeiter-Antrag geladen');
 }
 
