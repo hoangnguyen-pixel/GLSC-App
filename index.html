@@ -1448,7 +1448,8 @@ initOrtDatumFields();
 applySettings();
 checkFirstStart();
   renderSavedEmails();
-    // Cập nhật số liệu Badge hiển thị trên nút Filial Radar
+  renderEmpNotif();
+      // Cập nhật số liệu Badge hiển thị trên nút Filial Radar
     var countEl = document.getElementById('radar-count');
     if (countEl) {
         var list = window.radarStoresData;
@@ -1456,7 +1457,6 @@ checkFirstStart();
         countEl.innerText = storeCount;
         countEl.style.display = storeCount > 0 ? 'inline-block' : 'none';
     }
-  renderEmpNotif();
   if(id==='dienstplan'){dpOnShow();}
   if(id==='settings'){applySettings();renderSavedEmails();var wa=document.getElementById('st-manager-wa');if(wa)wa.value=localStorage.getItem('sc_manager_wa')||'';filMetaRender();}
   if(id==='stunden'){stdPopulateFilialeSelect();}
