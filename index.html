@@ -1432,7 +1432,7 @@ function sw(id, el) {
   document.querySelectorAll('.app-ico').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');
-var targetPanel = document.getElementById('panel-' + name);
+var targetPanel = document.getElementById('panel-' + id);
 if (targetPanel) {
     targetPanel.classList.add('active');
 }
