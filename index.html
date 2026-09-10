@@ -1,13 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <script>
-    // Ép chuyển hướng tự động về Dashboard nếu mở index.html
-    if (!window.location.search && !window.location.hash && !window.location.pathname.endsWith('dashboard.html')) {
-      window.location.replace('dashboard.html');
-    }
-  </script>
-
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HR Assistant - Sushi Circle</title>
@@ -101,7 +94,7 @@
   <header class="app-header">
     <div>
       <div class="app-header-title">🍣 HR Assistant</div>
-      <div class="app-header-sub">Sushi Circle Gastronomie GmbH</div>
+      <div class="app-header-sub">Sushi Circle Gastronomie GmbH - Nguyen Viet Hoang · Gebietsleiter</div>
     </div>
     <div class="user-profile-badge">
       Hoang ▼
@@ -177,7 +170,7 @@
   <!-- PANELS CONTENT -->
   <main class="panel-container">
 
-    <!-- TAB 1: KRANKMELDUNG -->
+    <!-- TAB 1: KRANKMELDUNG (MẶC ĐỊNH MỞ MỞ TAB NÀY) -->
     <div id="panel-krank" class="panel active">
       <div class="card">
         <h3>📩 Krankmeldungen (Live) <span class="badge-count">0</span></h3>
@@ -189,24 +182,27 @@
 
       <div class="card">
         <h3>Krankmeldung weiterleiten <span style="font-size:11px; background:#FEF9E7; color:#7D6608; padding:2px 6px; border-radius:4px;">Kein Ký erforderlich</span></h3>
+        <p style="font-size: 12px; color: #1A5276; background: #EBF5FB; padding: 10px; border-radius: 6px;">
+          Formular ausfüllen ➔ E-Mail-Entwurf erscheint automatisch ➔ In Mail-App öffnen und Attest anhängen.
+        </p>
         <div class="form-group">
-          <label>Mitarbeiter</label>
+          <label>MITARBEITER</label>
           <select class="form-control">
             <option>— Mitarbeiter wählen —</option>
           </select>
         </div>
         <div class="form-group">
-          <label>Name (manuell)</label>
+          <label>NAME (MANUELL)</label>
           <input type="text" class="form-control" placeholder="z.B. Nguyen Van A">
         </div>
         <div class="form-group">
-          <label>Personalnummer</label>
-          <input type="text" class="form-control" placeholder="12345">
+          <label>PERSONALNUMMER</label>
+          <input type="text" class="form-control">
         </div>
       </div>
     </div>
 
-    <!-- OTHER PANELS PLACEHOLDERS -->
+    <!-- OTHER PANELS -->
     <div id="panel-belege" class="panel"><h3>🧾 Belege</h3><p>Belege verwalten.</p></div>
     <div id="panel-waren" class="panel"><h3>🚚 Wareneingang</h3><p>Wareneingang prüfen.</p></div>
     <div id="panel-umlagerung" class="panel"><h3>🔄 Umlagerung</h3><p>Ware umzulagern.</p></div>
@@ -234,7 +230,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
 
   <script>
-    // HÀM CHUYỂN TAB (SW) HOÀN CHỈNH
     function sw(id, el) {
       document.querySelectorAll('.app-ico').forEach(function(t) { t.classList.remove('active'); });
       document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
@@ -246,7 +241,6 @@
         targetPanel.classList.add('active');
       }
 
-      // Khởi chạy các hàm tương ứng từng tab
       if (id === 'emp' && typeof renderEmpTable === 'function') renderEmpTable();
       if (id === 'news' && typeof nwRender === 'function') nwRender();
       if (id === 'urlaub' && typeof uManualPopulate === 'function') uManualPopulate();
@@ -255,7 +249,6 @@
       if (id === 'stunden' && typeof stdPopulateFilialeSelect === 'function') stdPopulateFilialeSelect();
       if (id === 'inventur' && typeof invOnShow === 'function') invOnShow();
 
-      // Cập nhật Badge số lượng Filialen
       var countEl = document.getElementById('radar-count');
       if (countEl) {
         var list = window.radarStoresData || [];
@@ -264,7 +257,6 @@
       }
     }
 
-    // ĐĂNG KÝ SERVICE WORKER
     document.addEventListener("DOMContentLoaded", function() {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').then(function(reg) {
