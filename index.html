@@ -1,31 +1,20 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+  <script>
+    // Chuyển thẳng về Dashboard nếu người dùng mở index.html
+    if (!window.location.search && !window.location.hash) {
+      window.location.replace('dashboard.html');
+    }
+  </script>
+
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HR Assistant - Sushi Circle</title>
-  
-  <script>
-    (function() {
-      var isDirectLaunch = !window.location.search && (!document.referrer || document.referrer.indexOf(location.hostname) === -1);
-      if (isDirectLaunch) {
-        window.location.replace('dashboard.html');
-      }
-    })();
-  </script>
+  <title>HR Assistant - Sushi Circle</
 
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
 </head>
-
-<meta charset="UTF-8">
-<link rel="manifest" href="manifest.json">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="HR Sushi">
-<meta name="theme-color" content="#C0392B">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>HR Assistant – Sushi Circle</title>
 <style>
 :root {
   --red:#C0392B;--red-d:#922B21;--red-l:#FADBD8;
@@ -1444,11 +1433,6 @@ var TO = 'teamsushi@zahlenwerk.de', CC = 'hr@sushi-circle.de';
 var SIG = '';
 // sig-display updated via applySettings()
 
-// ─── STORAGE ─────────────────────────────────────────────────
-function loadEmps() { try { return JSON.parse(localStorage.getItem('sc_emps') || '[]'); } catch(e) { return []; } }
-function saveEmps(arr) { localStorage.setItem('sc_emps', JSON.stringify(arr)); }
-
-// ─── TABS ─────────────────────────────────────────────────────
 // Hàm chuyển Tab & Tự động load dữ liệu theo vùng
 function sw(id, el) {
     document.querySelectorAll('.app-ico').forEach(function(t) { t.classList.remove('active'); });
@@ -1465,6 +1449,10 @@ function sw(id, el) {
     if (id === 'emp') { renderEmpTable(); fvPopulate(); }
     if (id === 'news') nwRender();
     if (id === 'urlaub') uManualPopulate();
+    if (id === 'dienstplan') { dpOnShow(); }
+    if (id === 'settings') { applySettings(); }
+    if (id === 'stunden') { stdPopulateFilialeSelect(); }
+    if (id === 'inventur') { invOnShow(); }
     
     avPopulateDropdown();
     initOrtDatumFields();
@@ -1480,6 +1468,7 @@ function sw(id, el) {
         countEl.style.display = list.length > 0 ? 'inline-block' : 'none';
     }
 }
+
   if(id==='dienstplan'){dpOnShow();}
   if(id==='settings'){applySettings();renderSavedEmails();var wa=document.getElementById('st-manager-wa');if(wa)wa.value=localStorage.getItem('sc_manager_wa')||'';filMetaRender();}
   if(id==='stunden'){stdPopulateFilialeSelect();}
