@@ -1448,10 +1448,11 @@ initOrtDatumFields();
 applySettings();
 checkFirstStart();
   renderSavedEmails();
-// Cập nhật số liệu Badge hiển thị trên nút Filial Radar
+    // Cập nhật số liệu Badge hiển thị trên nút Filial Radar
     var countEl = document.getElementById('radar-count');
     if (countEl) {
-        var storeCount = (window.radarStoresData && Array.isArray(window.radarStoresData)) ? window.radarStoresData.length : 0;
+        var list = window.radarStoresData;
+        var storeCount = (list && Array.isArray(list)) ? list.length : 0;
         countEl.innerText = storeCount;
         countEl.style.display = storeCount > 0 ? 'inline-block' : 'none';
     }
