@@ -1,14 +1,24 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<script>
-  (function() {
-    var path = window.location.pathname;
-    if ((path.endsWith('/GLSC-App/') || path.endsWith('/index.html')) && !window.location.search) {
-      window.location.href = 'dashboard.html';
-    }
-  })();
-</script>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HR Assistant - Sushi Circle</title>
+  
+  <!-- Tự động chuyển hướng về Dashboard nếu mở trực tiếp index.html -->
+  <script>
+    (function() {
+      var isDirectLaunch = !window.location.search && (!document.referrer || document.referrer.indexOf(location.hostname) === -1);
+      if (isDirectLaunch) {
+        window.location.replace('dashboard.html');
+      }
+    })();
+  </script>
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
 <meta charset="UTF-8">
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
