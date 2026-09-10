@@ -2,7 +2,7 @@
   "name": "GL Assistant – Sushi Circle",
   "short_name": "GLSC",
   "description": "Krankmeldung, Urlaub, Stundennachweis & mehr",
-  "start_url": "/GLSC-App/dashboard.html",
+  "start_url": "/GLSC-App/",
   "scope": "/GLSC-App/",
   "display": "standalone",
   "background_color": "#FAFAF9",
