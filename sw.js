@@ -1,73 +1,61 @@
-// ==========================================
-// Service Worker cho GLSC Assistant PWA
-// Version: v2 (Đổi version này mỗi khi cập nhật code để xóa cache cũ)
-// ==========================================
+const CACHE = 'hr-sushi-v7';
+const PRECACHE = ['icons/icon-192.png', 'icons/icon-512.png'];
 
-const CACHE_NAME = 'glsc-cache-v2';
-const ASSETS_TO_CACHE = [
-  './',
-  './dashboard.html',
-  './index.html',
-  './style.css',
-  './fb-config.js',
-  './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png'
-];
-
-// 1. Cài đặt Service Worker và lưu Cache tài nguyên
-self.addEventListener('install', function(event) {
-  self.skipWaiting(); // Bắt buộc kích hoạt ngay lập tức
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(function(cache) {
-      console.log('[Service Worker] Caching app shell');
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
-  );
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)).catch(()=>{}));
+  self.skipWaiting();
 });
 
-// 2. Kích hoạt và dọn dẹp các bản Cache phiên bản cũ
-self.addEventListener('activate', function(event) {
-  event.waitUntil(
-    caches.keys().then(function(keyList) {
-      return Promise.all(keyList.map(function(key) {
-        if (key !== CACHE_NAME) {
-          console.log('[Service Worker] Removing old cache:', key);
-          return caches.delete(key);
-        }
-      }));
-    }).then(function() {
-      return self.clients.claim(); // Quản lý toàn bộ client ngay lập tức
-    })
-  );
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(keys =>
+    Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+  ));
+  self.clients.claim();
 });
 
-// 3. Bắt các yêu cầu mạng (Fetch Event)
-self.addEventListener('fetch', function(event) {
-  var requestUrl = new URL(event.request.url);
+// HTML/JS: immer Netz zuerst (Updates greifen sofort), Cache nur als Offline-Fallback.
+// Niemals index.html als Ersatz für andere Dateien liefern.
+self.addEventListener('fetch', e => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
 
-  // CHUYỂN HƯỚNG TỰ ĐỘNG: Nếu truy cập trang gốc hoặc index.html -> Trả về dashboard.html
-  if (requestUrl.pathname.endsWith('/GLSC-App/') || requestUrl.pathname.endsWith('/index.html')) {
-    event.respondWith(Response.redirect('dashboard.html', 302));
+  // Produktbilder (Inventur): Cache-first -> sofort geladen + offline-fest,
+  // da sich Bilder nie ändern (Dateiname = Artikelnummer).
+  if (url.origin === location.origin && url.pathname.includes('/icons/items/')) {
+    e.respondWith(
+      caches.match(req).then(hit => {
+        if (hit) return hit;
+        return fetch(req).then(res => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then(c => c.put(req, copy)).catch(()=>{});
+          }
+          return res;
+        });
+      })
+    );
     return;
   }
 
-  // Xử lý nạp dữ liệu từ Cache (Network First with Cache Fallback)
-  event.respondWith(
-    fetch(event.request)
-      .then(function(response) {
-        // Nếu tải online thành công, cập nhật bản sao vào Cache
-        if (response && response.status === 200 && response.type === 'basic') {
-          var responseToCache = response.clone();
-          caches.open(CACHE_NAME).then(function(cache) {
-            cache.put(event.request, responseToCache);
-          });
-        }
-        return response;
-      })
-      .catch(function() {
-        // Nếu mất mạng (Offline), lấy dữ liệu từ Cache đã lưu trước đó
-        return caches.match(event.request);
-      })
+  // Eigene Dateien (index.html, mitarbeiter.html, sw.js selbst, ...):
+  // cache:'no-store' erzwingt eine ECHTE Netzwerk-Anfrage - ohne das würde
+  // "network-first" nur die eigene Service-Worker-Cache-Storage umgehen,
+  // aber der fetch() könnte trotzdem still aus dem normalen HTTP-Cache des
+  // Browsers bedient werden (abhängig von den Cache-Control-Headern von
+  // GitHub Pages), sodass Änderungen erst nach Ablauf dieses Caches ankommen.
+  // Fremde CDN-Skripte (jsPDF, ExcelJS, Firebase-SDK, Google Fonts, ...)
+  // bleiben normal cachebar - deren URLs sind ohnehin versioniert/gepinnt,
+  // aendern sich also nie unter derselben Adresse, und profitieren vom
+  // normalen Browser-Cache (schneller, weniger Datenverbrauch).
+  const isOwn = url.origin === location.origin;
+  e.respondWith(
+    fetch(req, isOwn ? { cache: 'no-store' } : {}).then(res => {
+      if (res && res.ok && isOwn) {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(req, copy)).catch(()=>{});
+      }
+      return res;
+    }).catch(() => caches.match(req))
   );
 });
