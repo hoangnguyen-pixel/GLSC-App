@@ -65,8 +65,19 @@ service cloud.firestore {
     // eine neue Region künftig ohne Code-Änderung nutzbar ist: es reicht,
     // hier einen Doc + einen managers/{email}-Eintrag anzulegen.
     match /regions/{slug} {
-      allow get, list: if isManager();
-      allow write: if false;
+      // "get" auch für Mitarbeiter (isAuthed) — mitarbeiter.html liest hier
+      // die urlaubRules der eigenen Region direkt, um dieselben Regeln
+      // clientseitig zu prüfen wie der Gebietsleiter in index.html einträgt.
+      // "list" bleibt Manager-only (kein Anwendungsfall für Mitarbeiter, und
+      // verhindert das Durchzählen aller Regionen).
+      allow get: if isAuthed();
+      allow list: if isManager();
+      // Ein Manager darf nur urlaubRules seiner EIGENEN Region ändern — label/
+      // syncUrl bleiben admin-only (per Skript gesetzt, siehe regions/{slug}
+      // Kommentar weiter oben im Projekt).
+      allow update: if isManagerForRegion(slug)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['urlaubRules']);
+      allow create, delete: if false;
     }
 
     // ══════════════════════════════════════════════════════════
@@ -277,6 +288,29 @@ service cloud.firestore {
       allow get: if isManagerForRegion(docRegion(resource.data));
       allow list: if isManagerForRegion(resource.data.region);
       allow write: if false;
+    }
+
+    // Wochen-Abgleich Urlaub/Krankmeldung vs. Welo (sync-week-welo-check.js) —
+    // 1 Dok. pro Region (docId = Region), bei jedem Lauf komplett überschrieben.
+    // Nur Manager, nur per Admin-SDK beschrieben — gleiches Muster wie oben.
+    match /welo_week_check/{region} {
+      allow get: if isManagerForRegion(docRegion(resource.data));
+      allow list: if isManagerForRegion(resource.data.region);
+      allow write: if false;
+    }
+
+    // Wareneingang → Schwan-Reklamation-Assistent (sync-schwan-lookup.js /
+    // sync-schwan-submit.js). Der Manager darf NUR sein eigenes Auftrag/
+    // Artikel-Review als confirmedSelection eintragen — alles andere
+    // (Vorschau-Daten, Status) kommt ausschließlich per Admin-SDK von den
+    // Skripten, damit ein Feld-Tippfehler im Client nie versehentlich die
+    // Vorschau selbst verfälscht.
+    match /schwan_matches/{id} {
+      allow get: if isManagerForRegion(docRegion(resource.data));
+      allow list: if isManagerForRegion(resource.data.region);
+      allow update: if isManagerForRegion(docRegion(resource.data))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['confirmedSelection']);
+      allow create, delete: if false;
     }
 
     // Audit-Log für den Manager-Schnellzugriff "Als Mitarbeiter ansehen"
