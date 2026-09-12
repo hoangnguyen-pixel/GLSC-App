@@ -668,6 +668,35 @@ window.onerror=function(msg,src,line){
   }
   const db = firebase.firestore();
   const auth = firebase.auth();
+  async function maDoLogin() {
+  const pinInput = document.getElementById('maPinInput') || document.getElementById('maPin');
+  const nrInput = document.getElementById('maNrInput') || document.getElementById('maNr');
+  
+  const pin = pinInput ? pinInput.value.trim() : '';
+  const maNr = nrInput ? nrInput.value.trim() : '';
+
+  if (!maNr || !pin) {
+    alert('Bitte Mã số nhân viên und PIN eingeben!');
+    return;
+  }
+
+  try {
+    const btn = document.querySelector('button[onclick*="maDoLogin"]');
+    if (btn) btn.disabled = true;
+
+    if (typeof maAuthLogin === 'function') {
+      await maAuthLogin(maNr, pin);
+    } else {
+      console.log('Đang xử lý đăng nhập cho nhân viên:', maNr);
+    }
+  } catch (err) {
+    alert('Lỗi đăng nhập: ' + err.message);
+  } finally {
+    const btn = document.querySelector('button[onclick*="maDoLogin"]');
+    if (btn) btn.disabled = false;
+  }
+}
+
 </script>
 
 /* ════════════════════════════════════════════════
