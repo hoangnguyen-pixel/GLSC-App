@@ -670,14 +670,15 @@ window.onerror=function(msg,src,line){
   const auth = firebase.auth();
 
   async function maDoLogin() {
-    const pinInput = document.getElementById('maPinInput') || document.getElementById('maPin');
-    const nrInput = document.getElementById('maNrInput') || document.getElementById('maNr');
+    // Tìm chính xác ID ô nhập dữ liệu trên giao diện
+    const nrInput = document.getElementById('maNr') || document.getElementById('maNrInput') || document.querySelector('input[type="text"]');
+    const pinInput = document.getElementById('maPin') || document.getElementById('maPinInput') || document.querySelector('input[type="password"]');
     
-    const pin = pinInput ? pinInput.value.trim() : '';
     const maNr = nrInput ? nrInput.value.trim() : '';
+    const pin = pinInput ? pinInput.value.trim() : '';
 
     if (!maNr || !pin) {
-      alert('Bitte Mã số nhân viên und PIN eingeben!');
+      alert('Bitte Personalnummer und PIN eingeben!');
       return;
     }
 
@@ -726,7 +727,6 @@ window.onerror=function(msg,src,line){
     }
   }
 </script>
-
 
 /* ════════════════════════════════════════════════
    FIREBASE (Realtime Urlaub).  Konfiguration unten einfügen.
