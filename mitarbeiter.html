@@ -668,36 +668,65 @@ window.onerror=function(msg,src,line){
   }
   const db = firebase.firestore();
   const auth = firebase.auth();
+
   async function maDoLogin() {
-  const pinInput = document.getElementById('maPinInput') || document.getElementById('maPin');
-  const nrInput = document.getElementById('maNrInput') || document.getElementById('maNr');
-  
-  const pin = pinInput ? pinInput.value.trim() : '';
-  const maNr = nrInput ? nrInput.value.trim() : '';
+    const pinInput = document.getElementById('maPinInput') || document.getElementById('maPin');
+    const nrInput = document.getElementById('maNrInput') || document.getElementById('maNr');
+    
+    const pin = pinInput ? pinInput.value.trim() : '';
+    const maNr = nrInput ? nrInput.value.trim() : '';
 
-  if (!maNr || !pin) {
-    alert('Bitte Mã số nhân viên und PIN eingeben!');
-    return;
-  }
-
-  try {
-    const btn = document.querySelector('button[onclick*="maDoLogin"]');
-    if (btn) btn.disabled = true;
-
-    if (typeof maAuthLogin === 'function') {
-      await maAuthLogin(maNr, pin);
-    } else {
-      console.log('Đang xử lý đăng nhập cho nhân viên:', maNr);
+    if (!maNr || !pin) {
+      alert('Bitte Mã số nhân viên und PIN eingeben!');
+      return;
     }
-  } catch (err) {
-    alert('Lỗi đăng nhập: ' + err.message);
-  } finally {
-    const btn = document.querySelector('button[onclick*="maDoLogin"]');
-    if (btn) btn.disabled = false;
-  }
-}
 
+    try {
+      const btn = document.querySelector('button[onclick*="maDoLogin"]');
+      if (btn) btn.disabled = true;
+
+      if (typeof maAuthLogin === 'function') {
+        await maAuthLogin(maNr, pin);
+      } else {
+        console.log('Đang xử lý đăng nhập cho nhân viên:', maNr);
+      }
+    } catch (err) {
+      alert('Lỗi đăng nhập: ' + err.message);
+    } finally {
+      const btn = document.querySelector('button[onclick*="maDoLogin"]');
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function setLang(lang) {
+    if (window.i18n && typeof window.i18n.setLang === 'function') {
+      window.i18n.setLang(lang);
+    } else {
+      console.log('Đã chọn ngôn ngữ:', lang);
+    }
+  }
+
+  async function maAuthLogin(maNr, pin) {
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ maNr, pin })
+      });
+      const data = await response.json();
+      if (data.token) {
+        await auth.signInWithCustomToken(data.token);
+        location.reload();
+      } else {
+        alert(data.error || 'Mã số nhân viên hoặc PIN không chính xác!');
+      }
+    } catch (err) {
+      console.error('Lỗi kết nối auth:', err);
+      alert('Không thể kết nối đến máy chủ đăng nhập!');
+    }
+  }
 </script>
+
 
 /* ════════════════════════════════════════════════
    FIREBASE (Realtime Urlaub).  Konfiguration unten einfügen.
