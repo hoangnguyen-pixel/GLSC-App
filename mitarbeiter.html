@@ -670,10 +670,19 @@ window.onerror=function(msg,src,line){
   const auth = firebase.auth();
 
   async function maDoLogin() {
-    // Tìm chính xác ID ô nhập dữ liệu trên giao diện
-    const nrInput = document.getElementById('maNr') || document.getElementById('maNrInput') || document.querySelector('input[type="text"]');
-    const pinInput = document.getElementById('maPin') || document.getElementById('maPinInput') || document.querySelector('input[type="password"]');
-    
+    // Tự động tìm ID ô nhập Personalnummer và PIN theo mọi khả năng đặt tên
+    const nrInput = document.getElementById('ma-nr') || 
+                    document.getElementById('maNr') || 
+                    document.getElementById('maNrInput') || 
+                    document.getElementById('personalnummer') ||
+                    document.querySelector('input[type="text"]');
+
+    const pinInput = document.getElementById('ma-pin') || 
+                     document.getElementById('maPin') || 
+                     document.getElementById('maPinInput') || 
+                     document.getElementById('pin') ||
+                     document.querySelector('input[type="password"]');
+
     const maNr = nrInput ? nrInput.value.trim() : '';
     const pin = pinInput ? pinInput.value.trim() : '';
 
@@ -689,7 +698,7 @@ window.onerror=function(msg,src,line){
       if (typeof maAuthLogin === 'function') {
         await maAuthLogin(maNr, pin);
       } else {
-        console.log('Đang xử lý đăng nhập cho nhân viên:', maNr);
+        console.log('Đang xử lý đăng nhập cho Personalnummer:', maNr);
       }
     } catch (err) {
       alert('Lỗi đăng nhập: ' + err.message);
@@ -698,6 +707,36 @@ window.onerror=function(msg,src,line){
       if (btn) btn.disabled = false;
     }
   }
+
+  function setLang(lang) {
+    if (window.i18n && typeof window.i18n.setLang === 'function') {
+      window.i18n.setLang(lang);
+    } else {
+      console.log('Đã chọn ngôn ngữ:', lang);
+    }
+  }
+
+  async function maAuthLogin(maNr, pin) {
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ maNr, pin })
+      });
+      const data = await response.json();
+      if (data.token) {
+        await auth.signInWithCustomToken(data.token);
+        location.reload();
+      } else {
+        alert(data.error || 'Personalnummer hoặc PIN không chính xác!');
+      }
+    } catch (err) {
+      console.error('Lỗi kết nối auth:', err);
+      alert('Không thể kết nối đến máy chủ đăng nhập!');
+    }
+  }
+</script>
+
 
   function setLang(lang) {
     if (window.i18n && typeof window.i18n.setLang === 'function') {
