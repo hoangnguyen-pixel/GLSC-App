@@ -653,14 +653,23 @@ window.onerror=function(msg,src,line){
 
 <div class="toast" id="toast"></div>
 
-<script src="fb-config.js"></script>
-<script src="inventur-data.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
+
+<script src="fb-config.js"></script>
+<script src="inventur-data.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <script>
+  if (!firebase.apps.length) {
+    firebase.initializeApp(window.FB_CONFIG);
+  }
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+</script>
+
 /* ════════════════════════════════════════════════
    FIREBASE (Realtime Urlaub).  Konfiguration unten einfügen.
    Leer lassen → App läuft im Offline-Modus (Bundle/lokal).
