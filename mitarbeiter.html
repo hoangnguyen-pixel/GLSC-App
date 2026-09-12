@@ -722,55 +722,28 @@ window.onerror=function(msg,src,line){
     }
   }
 
-  async function maAuthLogin(maNr, pin) {
+    async function maAuthLogin(maNr, pin) {
     try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ maNr, pin })
-      });
-      const data = await response.json();
-      if (data.token) {
-        await auth.signInWithCustomToken(data.token);
+      const snapshot = await db.collection('mitarbeiter')
+        .where('personalnummer', '==', maNr)
+        .where('pin', '==', pin)
+        .get();
+
+      if (!snapshot.empty) {
+        const userData = snapshot.docs[0].data();
+        localStorage.setItem('current_user', JSON.stringify(userData));
+        alert('Đăng nhập thành công!');
         location.reload();
       } else {
-        alert(data.error || 'Personalnummer hoặc PIN không chính xác!');
+        alert('Personalnummer hoặc PIN không chính xác!');
       }
     } catch (err) {
-      console.error('Lỗi kết nối auth:', err);
-      alert('Không thể kết nối đến máy chủ đăng nhập!');
-    }
-  }
-</script>
-
-
-  function setLang(lang) {
-    if (window.i18n && typeof window.i18n.setLang === 'function') {
-      window.i18n.setLang(lang);
-    } else {
-      console.log('Đã chọn ngôn ngữ:', lang);
+      console.error('Lỗi xác thực Firebase:', err);
+      alert('Lỗi xác thực dữ liệu: ' + err.message);
     }
   }
 
-  async function maAuthLogin(maNr, pin) {
-    try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ maNr, pin })
-      });
-      const data = await response.json();
-      if (data.token) {
-        await auth.signInWithCustomToken(data.token);
-        location.reload();
-      } else {
-        alert(data.error || 'Mã số nhân viên hoặc PIN không chính xác!');
-      }
-    } catch (err) {
-      console.error('Lỗi kết nối auth:', err);
-      alert('Không thể kết nối đến máy chủ đăng nhập!');
-    }
-  }
+
 </script>
 
 /* ════════════════════════════════════════════════
