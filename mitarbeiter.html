@@ -670,31 +670,36 @@ window.onerror=function(msg,src,line){
   const auth = firebase.auth();
 
   async function maDoLogin() {
-    // Tự động tìm ID ô nhập Personalnummer và PIN theo mọi khả năng đặt tên
-    const nrInput = document.getElementById('ma-nr') || 
-                    document.getElementById('maNr') || 
-                    document.getElementById('maNrInput') || 
-                    document.getElementById('personalnummer') ||
-                    document.querySelector('input[type="text"]');
+    // Tự động tìm tất cả các ô input dạng text/number/password trên form
+    const inputs = document.querySelectorAll('input');
+    let maNr = '';
+    let pin = '';
 
-    const pinInput = document.getElementById('ma-pin') || 
-                     document.getElementById('maPin') || 
-                     document.getElementById('maPinInput') || 
-                     document.getElementById('pin') ||
-                     document.querySelector('input[type="password"]');
+    inputs.forEach(input => {
+      if (input.type === 'password') {
+        pin = input.value.trim();
+      } else if (input.type === 'text' || input.type === 'number') {
+        if (input.value.trim()) {
+          maNr = input.value.trim();
+        }
+      }
+    });
 
-    const maNr = nrInput ? nrInput.value.trim() : '';
-    const pin = pinInput ? pinInput.value.trim() : '';
-
-    if (!maNr || !pin) {
-      alert('Bitte Personalnummer und PIN eingeben!');
-      return;
+    // Nếu vẫn không tìm thấy qua type, thử tìm qua ID cũ
+    if (!maNr) {
+      const nrEl = document.getElementById('ma-nr') || document.getElementById('maNr') || document.getElementById('personalnummer');
+      if (nrEl) maNr = nrEl.value.trim();
+    }
+    if (!pin) {
+      const pinEl = document.getElementById('ma-pin') || document.getElementById('maPin') || document.getElementById('pin');
+      if (pinEl) pin = pinEl.value.trim();
     }
 
     try {
       const btn = document.querySelector('button[onclick*="maDoLogin"]');
       if (btn) btn.disabled = true;
 
+      // Gọi trực tiếp hàm xử lý đăng nhập không qua câu lệnh if chặn
       if (typeof maAuthLogin === 'function') {
         await maAuthLogin(maNr, pin);
       } else {
@@ -703,6 +708,7 @@ window.onerror=function(msg,src,line){
     } catch (err) {
       alert('Lỗi đăng nhập: ' + err.message);
     } finally {
+      
       const btn = document.querySelector('button[onclick*="maDoLogin"]');
       if (btn) btn.disabled = false;
     }
