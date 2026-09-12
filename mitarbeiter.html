@@ -653,99 +653,14 @@ window.onerror=function(msg,src,line){
 
 <div class="toast" id="toast"></div>
 
+<script src="fb-config.js"></script>
+<script src="inventur-data.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
-
-<script src="fb-config.js"></script>
-<script src="inventur-data.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
 <script>
-  if (!firebase.apps.length) {
-    firebase.initializeApp(window.FB_CONFIG);
-  }
-  const db = firebase.firestore();
-  const auth = firebase.auth();
-
-  async function maDoLogin() {
-    // Tự động tìm tất cả các ô input dạng text/number/password trên form
-    const inputs = document.querySelectorAll('input');
-    let maNr = '';
-    let pin = '';
-
-    inputs.forEach(input => {
-      if (input.type === 'password') {
-        pin = input.value.trim();
-      } else if (input.type === 'text' || input.type === 'number') {
-        if (input.value.trim()) {
-          maNr = input.value.trim();
-        }
-      }
-    });
-
-    // Nếu vẫn không tìm thấy qua type, thử tìm qua ID cũ
-    if (!maNr) {
-      const nrEl = document.getElementById('ma-nr') || document.getElementById('maNr') || document.getElementById('personalnummer');
-      if (nrEl) maNr = nrEl.value.trim();
-    }
-    if (!pin) {
-      const pinEl = document.getElementById('ma-pin') || document.getElementById('maPin') || document.getElementById('pin');
-      if (pinEl) pin = pinEl.value.trim();
-    }
-
-    try {
-      const btn = document.querySelector('button[onclick*="maDoLogin"]');
-      if (btn) btn.disabled = true;
-
-      // Gọi trực tiếp hàm xử lý đăng nhập không qua câu lệnh if chặn
-      if (typeof maAuthLogin === 'function') {
-        await maAuthLogin(maNr, pin);
-      } else {
-        console.log('Đang xử lý đăng nhập cho Personalnummer:', maNr);
-      }
-    } catch (err) {
-      alert('Lỗi đăng nhập: ' + err.message);
-    } finally {
-      
-      const btn = document.querySelector('button[onclick*="maDoLogin"]');
-      if (btn) btn.disabled = false;
-    }
-  }
-
-  function setLang(lang) {
-    if (window.i18n && typeof window.i18n.setLang === 'function') {
-      window.i18n.setLang(lang);
-    } else {
-      console.log('Đã chọn ngôn ngữ:', lang);
-    }
-  }
-
-    async function maAuthLogin(maNr, pin) {
-    try {
-      const snapshot = await db.collection('mitarbeiter')
-        .where('personalnummer', '==', maNr)
-        .where('pin', '==', pin)
-        .get();
-
-      if (!snapshot.empty) {
-        const userData = snapshot.docs[0].data();
-        localStorage.setItem('current_user', JSON.stringify(userData));
-        alert('Đăng nhập thành công!');
-        location.reload();
-      } else {
-        alert('Personalnummer hoặc PIN không chính xác!');
-      }
-    } catch (err) {
-      console.error('Lỗi xác thực Firebase:', err);
-      alert('Lỗi xác thực dữ liệu: ' + err.message);
-    }
-  }
-
-
-</script>
-
 /* ════════════════════════════════════════════════
    FIREBASE (Realtime Urlaub).  Konfiguration unten einfügen.
    Leer lassen → App läuft im Offline-Modus (Bundle/lokal).
